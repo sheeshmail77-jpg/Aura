@@ -135,6 +135,12 @@
   
       saveToken(data.token);
       currentUser = data.user;
+      // If redirected here from a /log/... link, go back there now
+      const nextPath = new URLSearchParams(window.location.search).get("next");
+      if (nextPath && nextPath.startsWith("/log/")) {
+        window.location.replace(nextPath);
+        return;
+      }
       showApp();
     } catch (_) {
       showLoginErr("Network error. Please try again.");
