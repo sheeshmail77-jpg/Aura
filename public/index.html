@@ -87,7 +87,6 @@
                   <label for="newRole">Role</label>
                   <select id="newRole" class="select-input">
                     <option value="viewer">Viewer</option>
-                    <option value="moderator">Moderator</option>
                     <option value="admin">Admin</option>
                   </select>
                 </div>
@@ -185,6 +184,40 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+  
+      <!-- ═══════════════════════════════════════════════════════════════════════
+           DATE PICKER POPOVER (shared singleton)
+      ════════════════════════════════════════════════════════════════════════ -->
+      <div id="dpPopover" class="dp-popover" hidden>
+        <div class="dp-presets">
+          <button type="button" class="dp-preset" data-days="1">+1 day</button>
+          <button type="button" class="dp-preset" data-days="7">+7 days</button>
+          <button type="button" class="dp-preset" data-days="30">+30 days</button>
+          <button type="button" class="dp-preset" data-days="90">+90 days</button>
+          <button type="button" class="dp-preset" data-days="365">+1 year</button>
+        </div>
+        <div class="dp-divider"></div>
+        <div class="dp-cal-header">
+          <button type="button" class="dp-nav" id="dpPrev">&#8249;</button>
+          <span class="dp-month-label" id="dpMonthLabel">June 2026</span>
+          <button type="button" class="dp-nav" id="dpNext">&#8250;</button>
+        </div>
+        <div class="dp-weekdays">
+          <span>Su</span><span>Mo</span><span>Tu</span><span>We</span>
+          <span>Th</span><span>Fr</span><span>Sa</span>
+        </div>
+        <div class="dp-grid" id="dpGrid"></div>
+        <div class="dp-divider"></div>
+        <div class="dp-days-input">
+          <span class="dp-days-label">Or type</span>
+          <input type="number" id="dpDaysInput" class="dp-days-field" min="1" max="3650" placeholder="days" />
+          <span class="dp-days-label">days from today</span>
+        </div>
+        <div class="dp-actions">
+          <button type="button" class="btn-ghost btn-sm" id="dpClear">No Expiry</button>
+          <button type="button" class="btn-primary btn-sm" id="dpApply">Apply</button>
         </div>
       </div>
   
@@ -315,7 +348,13 @@
             <div class="card-meta">
               <div class="owner">
                 <span class="owner-ava"></span>
-                <span class="owner-name"></span>
+                <a class="owner-name" target="_blank" rel="noopener"></a>
+                <button type="button" class="owner-copy" title="Copy username" aria-label="Copy username">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
               </div>
               <a class="join-btn" target="_blank" rel="noopener">Join</a>
             </div>
