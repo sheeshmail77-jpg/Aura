@@ -153,16 +153,8 @@
     next();
   }
   
-  function requirePanelAccess(req, res, next) {
-    const r = req.user && req.user.role;
-    if (r !== "owner" && r !== "admin" && r !== "moderator")
-      return res.status(403).json({ error: "panel access required" });
-    next();
-  }
-
   function requireAdminOrOwner(req, res, next) {
-    const r = req.user && req.user.role;
-    if (r !== "owner" && r !== "admin")
+    if (!req.user || (req.user.role !== "owner" && req.user.role !== "admin"))
       return res.status(403).json({ error: "admin access required" });
     next();
   }
@@ -176,9 +168,8 @@
   // Can the acting user modify the target user?
   function canModify(actorRole, targetRole) {
     if (actorRole === "owner") return true;
-    if (actorRole === "admin" && (targetRole === "viewer" || targetRole === "moderator")) return true;
-    if (actorRole === "moderator" && targetRole === "viewer") return true;
-    return false;
+    if (actorRole === "admin" && targetRole === "viewer") return true;
+    return false; // admin cannot touch other admins
   }
   
   // ─── auth routes ─────────────────────────────────────────────────────────────
@@ -265,37 +256,31 @@
   // ─── admin routes ─────────────────────────────────────────────────────────────
   
   // GET all users
-  app.get("/api/admin/users", requireAuth, requirePanelAccess, (req, res) => {
-    const users    = loadUsers();
-    const actorRole = req.user.role;
-    const showIp   = actorRole === "owner" || actorRole === "admin";
-
+  app.get("/api/admin/users", requireAuth, requireAdminOrOwner, (req, res) => {
+    const users   = loadUsers();
+    const isOwner = req.user.role === "owner";
+  
     const list = users
-      .filter(u => {
-        // owner sees all; admin sees non-admins; mod sees viewers only
-        if (actorRole === "owner") return true;
-        if (actorRole === "admin") return u.role !== "admin";
-        return u.role === "viewer"; // moderator
-      })
+      .filter(u => isOwner || u.role !== "admin") // admins cannot see other admins
       .map(u => ({
         id:           u.id,
         username:     u.username,
         role:         u.role || "viewer",
         createdAt:    u.createdAt,
-        expiresAt:    u.expiresAt   || null,
-        lockedIp:     showIp ? (u.lockedIp || null) : null,
+        expiresAt:    u.expiresAt  || null,
+        lockedIp:     u.lockedIp   || null,
         hwidMasked:   u.lockedHwid ? maskHwid(u.lockedHwid) : null,
         hasHwid:      !!u.lockedHwid,
         ogAccess:     !!u.ogAccess,
         dragonAccess: !!u.dragonAccess,
         smallAccess:  !!u.smallAccess,
       }));
-
+  
     res.json({ users: list });
   });
   
   // PUT set access permissions
-  app.put("/api/admin/users/:id/access", requireAuth, requirePanelAccess, (req, res) => {
+  app.put("/api/admin/users/:id/access", requireAuth, requireAdminOrOwner, (req, res) => {
     const { ogAccess, dragonAccess, smallAccess } = req.body || {};
     const users = loadUsers();
     const user  = users.find(u => u.id === req.params.id);
@@ -312,30 +297,28 @@
   });
 
   // POST create user
-  app.post("/api/admin/users", requireAuth, requirePanelAccess, async (req, res) => {
+  app.post("/api/admin/users", requireAuth, requireAdminOrOwner, async (req, res) => {
     const { username, password, role, expiresAt, ogAccess, dragonAccess, smallAccess } = req.body || {};
-
+  
     if (!username || !password || typeof username !== "string" || typeof password !== "string")
       return res.status(400).json({ error: "username and password are required" });
-
+  
     const uname = username.trim();
-
+  
     if (uname.length < 3 || uname.length > 32)
       return res.status(400).json({ error: "username must be 3–32 characters" });
-
+  
     if (!/^[a-zA-Z0-9_.\-]+$/.test(uname))
       return res.status(400).json({ error: "username may only contain letters, numbers, _ . -" });
-
+  
     if (password.length < 8)
       return res.status(400).json({ error: "password must be at least 8 characters" });
-
+  
     if (uname.toLowerCase() === OWNER_USERNAME.toLowerCase())
       return res.status(409).json({ error: "that username is reserved" });
-
-    // Role hierarchy: owner→admin/mod/viewer, admin→mod/viewer, moderator→viewer only
-    let targetRole = "viewer";
-    if (role === "admin"     && req.user.role === "owner") targetRole = "admin";
-    if (role === "moderator" && (req.user.role === "owner" || req.user.role === "admin")) targetRole = "moderator";
+  
+    // Only owner can create admin accounts
+    const targetRole = (role === "admin" && req.user.role === "owner") ? "admin" : "viewer";
   
     // Validate expiresAt
     let expiry = null;
@@ -379,7 +362,7 @@
   });
   
   // DELETE user
-  app.delete("/api/admin/users/:id", requireAuth, requirePanelAccess, (req, res) => {
+  app.delete("/api/admin/users/:id", requireAuth, requireAdminOrOwner, (req, res) => {
     const users = loadUsers();
     const idx   = users.findIndex(u => u.id === req.params.id);
     if (idx === -1) return res.status(404).json({ error: "user not found" });
@@ -394,7 +377,7 @@
   });
   
   // PUT reset password
-  app.put("/api/admin/users/:id/password", requireAuth, requirePanelAccess, async (req, res) => {
+  app.put("/api/admin/users/:id/password", requireAuth, requireAdminOrOwner, async (req, res) => {
     const { password } = req.body || {};
     if (!password || typeof password !== "string" || password.length < 8)
       return res.status(400).json({ error: "new password must be at least 8 characters" });
@@ -412,7 +395,7 @@
   });
   
   // PUT set/clear expiry
-  app.put("/api/admin/users/:id/expiry", requireAuth, requirePanelAccess, (req, res) => {
+  app.put("/api/admin/users/:id/expiry", requireAuth, requireAdminOrOwner, (req, res) => {
     const { expiresAt } = req.body;
     const users = loadUsers();
     const user  = users.find(u => u.id === req.params.id);
@@ -433,31 +416,23 @@
     res.json({ ok: true, expiresAt: user.expiresAt });
   });
   
-  // PUT change role (owner: any role; admin: viewer↔moderator only)
-  app.put("/api/admin/users/:id/role", requireAuth, requireAdminOrOwner, (req, res) => {
+  // PUT change role (owner only)
+  app.put("/api/admin/users/:id/role", requireAuth, requireOwner, (req, res) => {
     const { role } = req.body || {};
-    if (!["admin", "moderator", "viewer"].includes(role))
-      return res.status(400).json({ error: "role must be 'admin', 'moderator', or 'viewer'" });
-
-    const actorRole = req.user.role;
-    // Only owner can grant/revoke admin
-    if (role === "admin" && actorRole !== "owner")
-      return res.status(403).json({ error: "only the owner can assign the admin role" });
-
+    if (!["admin", "viewer"].includes(role))
+      return res.status(400).json({ error: "role must be 'admin' or 'viewer'" });
+  
     const users = loadUsers();
     const user  = users.find(u => u.id === req.params.id);
     if (!user) return res.status(404).json({ error: "user not found" });
-
-    if (!canModify(actorRole, user.role))
-      return res.status(403).json({ error: "you do not have permission to modify this account" });
-
+  
     user.role = role;
     saveUsers(users);
     res.json({ ok: true, role: user.role });
   });
   
   // POST reset IP lock
-  app.post("/api/admin/users/:id/reset-ip", requireAuth, requirePanelAccess, (req, res) => {
+  app.post("/api/admin/users/:id/reset-ip", requireAuth, requireAdminOrOwner, (req, res) => {
     const users = loadUsers();
     const user  = users.find(u => u.id === req.params.id);
     if (!user) return res.status(404).json({ error: "user not found" });
@@ -471,7 +446,7 @@
   });
   
   // POST reset HWID lock
-  app.post("/api/admin/users/:id/reset-hwid", requireAuth, requirePanelAccess, (req, res) => {
+  app.post("/api/admin/users/:id/reset-hwid", requireAuth, requireAdminOrOwner, (req, res) => {
     const users = loadUsers();
     const user  = users.find(u => u.id === req.params.id);
     if (!user) return res.status(404).json({ error: "user not found" });
@@ -484,352 +459,6 @@
     res.json({ ok: true });
   });
   
-  // ─── single-log auth-protected JSON (5-min expiry) ───────────────────────────
-  const LOG_VIEW_MS = 5 * 60 * 1000; // 5 minutes
-
-  app.get("/api/log/:id", requireAuth, (req, res) => {
-    const entry = logs.find(l => l.id === req.params.id);
-    if (!entry) return res.status(404).json({ error: "log not found or expired" });
-    if (Date.now() - entry.receivedAt > LOG_VIEW_MS)
-      return res.status(410).json({ error: "This find has expired (5 min limit)." });
-    res.json({ ok: true, entry });
-  });
-
-  // ─── single-log public highlight page ────────────────────────────────────────
-  app.get("/log/:id", (req, res) => {
-    const id = req.params.id;
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.send(`<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Brainrot Find</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-  <style>
-    :root {
-      --bg: #07070c;
-      --panel: rgba(20,20,32,0.85);
-      --panel-solid: #13131f;
-      --border: rgba(255,255,255,0.09);
-      --border-strong: rgba(255,255,255,0.17);
-      --text: #f2f3f8;
-      --muted: #9aa0b4;
-      --faint: #6a7088;
-      --og: #ffb43c; --og-2: #ff7a00;
-      --dragon: #ff4d4d; --dragon-2: #c01818;
-      --small: #38d0ff; --small-2: #1f8fff;
-      --radius: 20px;
-    }
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{
-      min-height:100vh;
-      background: radial-gradient(1100px 650px at 60% 0%, #16162a 0%, var(--bg) 60%) fixed var(--bg);
-      color:var(--text);
-      font-family:"Inter",system-ui,sans-serif;
-      -webkit-font-smoothing:antialiased;
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      padding:24px 16px;
-    }
-
-    /* orbs */
-    .orbs{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
-    .orb{position:absolute;border-radius:50%;filter:blur(90px)}
-    .orb-1{width:420px;height:420px;opacity:.32;top:-100px;left:-60px}
-    .orb-2{width:380px;height:380px;opacity:.18;bottom:-120px;right:-80px}
-
-    .wrap{position:relative;z-index:1;width:100%;max-width:480px;display:flex;flex-direction:column;gap:20px}
-
-    /* brand */
-    .brand{display:flex;align-items:center;gap:12px}
-    .brand-mark{
-      width:42px;height:42px;border-radius:12px;
-      background:linear-gradient(135deg,var(--og-2),var(--dragon-2));
-      display:grid;place-items:center;
-      font-weight:900;font-size:16px;color:#fff;
-      box-shadow:0 6px 20px rgba(255,90,0,.3);
-      flex-shrink:0;
-    }
-    .brand-title{font-size:18px;font-weight:800}
-    .brand-sub{font-size:12px;color:var(--muted);margin-top:2px;font-weight:500}
-
-    /* card */
-    .card{
-      background:var(--panel-solid);
-      border:1px solid var(--border-strong);
-      border-radius:var(--radius);
-      overflow:hidden;
-      box-shadow:0 24px 64px rgba(0,0,0,.55);
-      position:relative;
-    }
-    .card-accent{height:4px;width:100%}
-    .card-og     .card-accent{background:linear-gradient(90deg,var(--og),var(--og-2))}
-    .card-dragon .card-accent{background:linear-gradient(90deg,var(--dragon),var(--dragon-2))}
-    .card-small  .card-accent{background:linear-gradient(90deg,var(--small),var(--small-2))}
-
-    .card-inner{display:flex;gap:18px;padding:20px;align-items:flex-start}
-
-    .card-img{
-      width:100px;height:100px;border-radius:14px;flex-shrink:0;
-      background:#0c0c16;border:1px solid var(--border);
-      overflow:hidden;display:grid;place-items:center;
-    }
-    .card-img img{width:100%;height:100%;object-fit:cover;display:block}
-    .card-img.broken::after{content:"?";font-size:32px;font-weight:800;color:var(--faint)}
-    .card-img.broken img{display:none}
-
-    .card-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
-
-    .tier-badge{
-      display:inline-flex;align-items:center;gap:5px;
-      font-size:10px;font-weight:900;letter-spacing:.8px;
-      padding:3px 9px;border-radius:6px;color:#0a0a0f;width:fit-content;
-    }
-    .card-og     .tier-badge{background:linear-gradient(135deg,var(--og),var(--og-2))}
-    .card-dragon .tier-badge{background:linear-gradient(135deg,var(--dragon),var(--dragon-2));color:#fff}
-    .card-small  .tier-badge{background:linear-gradient(135deg,var(--small),var(--small-2));color:#04121c}
-
-    .animal-name{font-size:19px;font-weight:900;letter-spacing:-.3px;line-height:1.15}
-
-    .badges{display:flex;flex-wrap:wrap;gap:5px}
-    .badge{
-      font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;
-      border:1px solid var(--border-strong);color:var(--text);
-    }
-    .badge-mut       {color:#ffe7a8;border-color:rgba(255,180,60,.4);background:rgba(255,180,60,.08)}
-    .badge-mut-normal{color:var(--faint)}
-    .badge-gen       {color:#b8ffd0;border-color:rgba(46,227,122,.35);background:rgba(46,227,122,.08)}
-
-    /* extra animals */
-    .extra-animals{display:flex;flex-direction:column;gap:5px;padding:0 20px 16px}
-    .extra-row{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);font-weight:600}
-    .extra-row .badge{font-size:10.5px}
-
-    /* divider */
-    .divider{height:1px;background:var(--border);margin:0 20px}
-
-    /* owner + actions */
-    .card-footer{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;gap:12px}
-    .owner{display:flex;align-items:center;gap:10px;min-width:0}
-    .owner-ava{
-      width:34px;height:34px;border-radius:50%;flex-shrink:0;
-      background:linear-gradient(135deg,#2a2a40,#3a3a5a);
-      display:grid;place-items:center;font-size:12px;font-weight:800;color:#cfd2e0;overflow:hidden;
-    }
-    .owner-ava img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
-    .owner-name{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .owner-label{font-size:11px;color:var(--faint);font-weight:500;margin-top:1px}
-
-    .join-btn{
-      text-decoration:none;font-size:14px;font-weight:800;
-      padding:11px 22px;border-radius:12px;color:#04121c;white-space:nowrap;flex-shrink:0;
-      background:linear-gradient(135deg,#4be08a,#1fbf6a);
-      box-shadow:0 6px 18px rgba(31,191,106,.32);
-      transition:transform .12s,filter .12s;display:flex;align-items:center;gap:7px;
-    }
-    .join-btn:hover{transform:translateY(-2px);filter:brightness(1.08)}
-    .join-btn.disabled{background:#2a2a3a;color:var(--faint);box-shadow:none;pointer-events:none}
-    .join-btn svg{flex-shrink:0}
-
-    /* time */
-    .card-time{
-      text-align:center;padding:0 20px 14px;
-      font-size:12px;color:var(--faint);font-weight:600;
-    }
-
-    /* states */
-    .state{text-align:center;padding:32px 20px;color:var(--muted);font-size:15px;font-weight:600}
-    .state.error{color:#ff8080}
-
-    /* back link */
-    .back{
-      display:flex;align-items:center;gap:6px;
-      font-size:13px;font-weight:600;color:var(--faint);
-      text-decoration:none;transition:color .12s;
-      align-self:flex-start;
-    }
-    .back:hover{color:var(--muted)}
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <a class="back" href="/">
-      <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/></svg>
-      Back to feed
-    </a>
-
-    <div class="brand">
-      <div class="brand-mark">BR</div>
-      <div>
-        <div class="brand-title">Brainrot Logger</div>
-        <div class="brand-sub">Live Plaza Find</div>
-      </div>
-    </div>
-
-    <div id="root"><div class="state">Loading…</div></div>
-  </div>
-
-  <script>
-    const LOG_ID = ${JSON.stringify(id)};
-
-    function proxyImg(url) {
-      if (!url) return null;
-      return "/api/img-proxy?url=" + encodeURIComponent(url);
-    }
-    function timeAgo(ms) {
-      const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
-      if (s < 5)  return "just now";
-      if (s < 60) return s + "s ago";
-      const m = Math.floor(s / 60);
-      if (m < 60) return m + "m ago";
-      const h = Math.floor(m / 60);
-      if (h < 24) return h + "h ago";
-      return Math.floor(h / 24) + "d ago";
-    }
-    function isNormal(m) {
-      if (!m) return true;
-      const s = String(m).toLowerCase().replace(/\\s+/g,"");
-      return s === "" || s === "none" || s === "normal" || s === "base";
-    }
-    function tierLabel(cat) {
-      return cat === "og" ? "OG" : cat === "dragon" ? "DRAGON" : "SMALL";
-    }
-
-    function render(entry) {
-      const animals  = Array.isArray(entry.animals) && entry.animals.length ? entry.animals : [{name:"?",mutation:"Normal"}];
-      const primary  = animals[0];
-      const catClass = "card-" + entry.category;
-      const rawImg   = entry.image || primary.image;
-
-      // orb colours
-      const oc = entry.category === "og" ? ["#ff7a00","#ff4d00"] : entry.category === "dragon" ? ["#ff2d2d","#8b0000"] : ["#1f8fff","#004080"];
-      document.querySelector(".orb-1").style.background = oc[0];
-      document.querySelector(".orb-2").style.background = oc[1];
-      document.title = primary.name + " — Brainrot Logger";
-
-      const extraAnimals = animals.slice(1);
-      const extraHtml = extraAnimals.length ? \`
-        <div class="extra-animals">
-          \${extraAnimals.map(a => \`
-            <div class="extra-row">
-              <span>\${esc(a.name)}</span>
-              \${isNormal(a.mutation)
-                ? \`<span class="badge badge-mut-normal">Normal</span>\`
-                : \`<span class="badge badge-mut">\${esc(a.mutation)}</span>\`}
-              \${a.generation ? \`<span class="badge badge-gen">\${esc(a.generation)}</span>\` : ""}
-            </div>
-          \`).join("")}
-        </div>
-        <div class="divider"></div>
-      \` : "";
-
-      const joinHref = entry.joinLink || null;
-      const when     = entry.loggedAt || entry.receivedAt || Date.now();
-
-      document.getElementById("root").innerHTML = \`
-        <div class="card \${catClass}">
-          <div class="card-accent"></div>
-          <div class="card-inner">
-            <div class="card-img" id="imgWrap">
-              \${rawImg ? \`<img id="animalImg" src="\${proxyImg(rawImg)}" alt="\${esc(primary.name)}"/>\` : ""}
-            </div>
-            <div class="card-info">
-              <span class="tier-badge">\${tierLabel(entry.category)}</span>
-              <div class="animal-name">\${esc(animals.length > 1 ? primary.name + " +" + (animals.length-1) : primary.name)}</div>
-              <div class="badges">
-                \${isNormal(primary.mutation)
-                  ? \`<span class="badge badge-mut-normal">Normal</span>\`
-                  : \`<span class="badge badge-mut">\${esc(primary.mutation)}</span>\`}
-                \${primary.generation ? \`<span class="badge badge-gen">\${esc(primary.generation)}</span>\` : ""}
-              </div>
-            </div>
-          </div>
-          \${extraHtml}
-          <div class="divider"></div>
-          <div class="card-footer">
-            <div class="owner">
-              <div class="owner-ava" id="ava">\${esc((entry.owner||"?").charAt(0).toUpperCase())}</div>
-              <div>
-                <div class="owner-name">\${esc(entry.owner || "?")}</div>
-                <div class="owner-label">Owner</div>
-              </div>
-            </div>
-            \${joinHref
-              ? \`<a class="join-btn" href="\${esc(joinHref)}" target="_blank" rel="noopener">
-                   <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
-                   Join Server
-                 </a>\`
-              : \`<span class="join-btn disabled">No Link</span>\`}
-          </div>
-          <div class="card-time" id="agoEl">\${timeAgo(when)}</div>
-        </div>
-      \`;
-
-      // img error → broken
-      if (rawImg) {
-        const img = document.getElementById("animalImg");
-        if (img) img.addEventListener("error", () => document.getElementById("imgWrap").classList.add("broken"), {once:true});
-      } else {
-        document.getElementById("imgWrap").classList.add("broken");
-      }
-
-      // owner avatar
-      if (entry.ownerAvatar) {
-        const avaEl = document.getElementById("ava");
-        const ai = document.createElement("img");
-        ai.src = proxyImg(entry.ownerAvatar);
-        ai.alt = (entry.owner||"?").charAt(0).toUpperCase();
-        ai.addEventListener("error", () => { ai.remove(); }, {once:true});
-        avaEl.appendChild(ai);
-      }
-
-      // live timer
-      const agoEl = document.getElementById("agoEl");
-      setInterval(() => { agoEl.textContent = timeAgo(when); }, 1000);
-    }
-
-    function esc(s) {
-      return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-    }
-
-    // Auth check – redirect to login if no token stored
-    const _token = localStorage.getItem("bl_token");
-    if (!_token) {
-      window.location.replace("/?next=" + encodeURIComponent(window.location.pathname));
-    } else {
-      fetch("/api/log/" + LOG_ID, {
-        headers: { "Authorization": "Bearer " + _token }
-      })
-        .then(r => {
-          if (r.status === 401 || r.status === 403) {
-            window.location.replace("/?next=" + encodeURIComponent(window.location.pathname));
-            throw new Error("unauth");
-          }
-          return r.json();
-        })
-        .then(d => {
-          if (!d.ok) throw new Error(d.error || "not found");
-          render(d.entry);
-        })
-        .catch(err => {
-          if (err.message === "unauth") return;
-          const isExpired = err.message && err.message.toLowerCase().includes("expired");
-          document.getElementById("root").innerHTML = isExpired
-            ? '<div class="state error">⏱ This find has expired — links are only valid for 5 minutes.</div>'
-            : '<div class="state error">⚠ This log does not exist or has expired.</div>';
-        });
-    }
-  </script>
-  <div class="orbs" aria-hidden="true">
-    <span class="orb orb-1"></span>
-    <span class="orb orb-2"></span>
-  </div>
-</body>
-</html>`);
-  });
-
   // ─── static files ────────────────────────────────────────────────────────────
   app.use(express.static(path.join(__dirname, "public")));
   
@@ -898,35 +527,89 @@
   // ─── image proxy (public) ─────────────────────────────────────────────────────
   app.get("/api/img-proxy", (req, res) => {
     const rawUrl = req.query.url;
-    if (!rawUrl || !/^https?:\/\//i.test(rawUrl)) return res.status(400).end();
-  
-    const PROXY_HEADERS = {
-      "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      "Accept":          "image/webp,image/apng,image/*,*/*;q=0.8",
-      "Accept-Language": "en-US,en;q=0.9",
-      "Referer":         "https://www.roblox.com/",
-    };
-  
+    if (!rawUrl || !/^https?:\/\//i.test(rawUrl)) {
+      return res.status(400).json({ error: "missing or invalid ?url=" });
+    }
+
+    // Per-target headers. Fandom (stealabr.fandom.com / static.wikia.nocookie.net)
+    // doesn't want a Roblox referer — a plain browser-like request works best.
+    // Roblox CDN hosts (rbxcdn.com / roblox.com) are fine with a Roblox referer.
+    function headersFor(targetUrl) {
+      let host = "";
+      try { host = new URL(targetUrl).hostname.toLowerCase(); } catch (_) {}
+
+      const base = {
+        "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept":          "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        // Explicitly do NOT request br/gzip — we pipe the raw body straight to the
+        // browser with a Content-Type header, so a compressed body would render broken.
+        "Accept-Encoding": "identity",
+      };
+
+      if (host.endsWith("roblox.com") || host.endsWith("rbxcdn.com")) {
+        base.Referer = "https://www.roblox.com/";
+      } else if (host.endsWith("fandom.com") || host.endsWith("wikia.nocookie.net")) {
+        base.Referer = "https://stealabr.fandom.com/";
+      }
+      return base;
+    }
+
     function fetchUrl(targetUrl, redirectCount) {
-      if (redirectCount > 8) return res.status(502).end();
-      const mod     = /^https:/i.test(targetUrl) ? https : http;
-      const request = mod.get(targetUrl, { timeout: 8000, headers: PROXY_HEADERS }, upstream => {
+      if (redirectCount > 8) {
+        return res.status(502).json({ error: "too many redirects", url: targetUrl });
+      }
+
+      let mod;
+      try { mod = /^https:/i.test(targetUrl) ? https : http; }
+      catch (_) { return res.status(400).json({ error: "bad url" }); }
+
+      const request = mod.get(targetUrl, { timeout: 8000, headers: headersFor(targetUrl) }, upstream => {
+        // Follow redirects, including relative paths with query strings.
         if (upstream.statusCode >= 300 && upstream.statusCode < 400 && upstream.headers.location) {
           upstream.resume();
           let next = upstream.headers.location;
-          if (next.startsWith("/")) { const p = new URL(targetUrl); next = p.origin + next; }
+          try { next = new URL(next, targetUrl).toString(); }
+          catch (_) { return res.status(502).json({ error: "bad redirect target", location: next }); }
           return fetchUrl(next, redirectCount + 1);
         }
+
         if (upstream.statusCode < 200 || upstream.statusCode >= 300) {
-          upstream.resume(); return res.status(502).end();
+          upstream.resume();
+          return res.status(502).json({
+            error:      "upstream returned an error",
+            upstream:   upstream.statusCode,
+            triedUrl:   targetUrl,
+          });
         }
-        res.setHeader("Content-Type",  upstream.headers["content-type"] || "image/png");
+
+        const contentType = upstream.headers["content-type"] || "image/png";
+        // Guard against upstream ignoring Accept-Encoding: identity and sending a
+        // compressed body anyway — fail loudly instead of piping garbage as "image/png".
+        const enc = (upstream.headers["content-encoding"] || "").toLowerCase();
+        if (enc && enc !== "identity") {
+          upstream.resume();
+          return res.status(502).json({ error: "unexpected content-encoding from upstream", encoding: enc });
+        }
+        if (!/^image\//i.test(contentType)) {
+          upstream.resume();
+          return res.status(502).json({ error: "upstream did not return an image", contentType, triedUrl: targetUrl });
+        }
+
+        res.setHeader("Content-Type",  contentType);
         res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=3600");
         upstream.pipe(res);
       });
-      request.on("error",   () => { if (!res.headersSent) res.status(502).end(); });
-      request.on("timeout", () => { request.destroy(); if (!res.headersSent) res.status(504).end(); });
+
+      request.on("error", (err) => {
+        if (!res.headersSent) res.status(502).json({ error: "fetch failed", message: err.message, triedUrl: targetUrl });
+      });
+      request.on("timeout", () => {
+        request.destroy();
+        if (!res.headersSent) res.status(504).json({ error: "upstream timed out", triedUrl: targetUrl });
+      });
     }
+
     fetchUrl(rawUrl, 0);
   });
   
