@@ -813,3 +813,115 @@
     .card-img { width: 64px; height: 64px; }
   .card-time { position: static; margin-top: 4px; }
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   GET ROLE BUTTON
+══════════════════════════════════════════════════════════════════════════════ */
+.btn-get-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: linear-gradient(135deg, #5865F2 0%, #4752c4 100%);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .15s, transform .1s;
+  white-space: nowrap;
+}
+.btn-get-role:hover  { opacity: .88; transform: translateY(-1px); }
+.btn-get-role:active { transform: translateY(0); }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   GET ROLE MODAL
+══════════════════════════════════════════════════════════════════════════════ */
+.gr-modal-card {
+  max-width: 460px;
+}
+
+.gr-steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 20px 0 24px;
+}
+.gr-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.gr-step-inactive .gr-step-num {
+  background: var(--border-strong);
+  color: var(--muted);
+}
+.gr-step-inactive .gr-step-label {
+  color: var(--muted);
+}
+.gr-step-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #5865F2 0%, #4752c4 100%);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background .2s;
+}
+.gr-step-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  transition: color .2s;
+}
+.gr-step-line {
+  flex: 1;
+  height: 2px;
+  background: var(--border-strong);
+  margin: 0 12px;
+}
+
+.gr-step-body {
+  animation: grFadeIn .2s ease;
+}
+@keyframes grFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.gr-desc {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.gr-desc small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.gr-code-input {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  font-family: monospace;
+}
+
+.gr-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
