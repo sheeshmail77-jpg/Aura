@@ -37,7 +37,7 @@
   const OWNER_PASSWORD =  process.env.OWNER_PASSWORD || "changeme123";
   
   const JWT_SECRET = process.env.JWT_SECRET || (() => {
-    console.warn("[auth] JWT_SECRET not set – using random secret (sessions will reset on restart).");
+    console.warn("[auth] JWT_SECRET not set – using random secret (sessions reset on restart).");
     return crypto.randomBytes(48).toString("hex");
   })();
   
@@ -68,8 +68,19 @@
     } catch (e) { console.error("[auth] Failed to save users:", e.message); }
   }
   
+  // ─── helpers ──────────────────────────────────────────────────────────────────
+  function getClientIp(req) {
+    return (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown")
+      .split(",")[0].trim();
+  }
+  
+  function maskHwid(hwid) {
+    if (!hwid) return null;
+    if (hwid.length <= 10) return hwid;
+    return hwid.slice(0, 6) + "…" + hwid.slice(-4);
+  }
+  
   // ─── login rate limiter ───────────────────────────────────────────────────────
-  // 10 attempts per IP per 15-minute window
   const loginAttempts = new Map();
   
   function checkRateLimit(ip) {
@@ -116,7 +127,35 @@
     if (!token) return res.status(401).json({ error: "unauthorized" });
     const payload = verifyToken(token);
     if (!payload) return res.status(401).json({ error: "invalid or expired token" });
-    req.user = payload;
+  
+    // Owner bypasses DB lookup
+    if (payload.role === "owner") {
+      req.user = payload;
+      return next();
+    }
+  
+    // ── For all regular users: verify they still exist and are valid ──────────
+    // This ensures deleted users are immediately locked out even with a live token.
+    const users = loadUsers();
+    const user  = users.find(u => u.id === payload.id);
+  
+    if (!user) {
+      return res.status(401).json({ error: "account not found" });
+    }
+  
+    // Check account expiry
+    if (user.expiresAt && Date.now() > new Date(user.expiresAt).getTime()) {
+      return res.status(401).json({ error: "account expired" });
+    }
+  
+    // Use fresh role from DB so role changes take effect without re-login
+    req.user = { ...payload, role: user.role || "viewer" };
+    next();
+  }
+  
+  function requireAdminOrOwner(req, res, next) {
+    if (!req.user || (req.user.role !== "owner" && req.user.role !== "admin"))
+      return res.status(403).json({ error: "admin access required" });
     next();
   }
   
@@ -126,15 +165,22 @@
     next();
   }
   
+  // Can the acting user modify the target user?
+  function canModify(actorRole, targetRole) {
+    if (actorRole === "owner") return true;
+    if (actorRole === "admin" && targetRole === "viewer") return true;
+    return false; // admin cannot touch other admins
+  }
+  
   // ─── auth routes ─────────────────────────────────────────────────────────────
   app.post("/api/auth/login", async (req, res) => {
-    const ip = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown").split(",")[0].trim();
+    const ip = getClientIp(req);
   
     if (!checkRateLimit(ip)) {
       return res.status(429).json({ error: "Too many login attempts. Please wait 15 minutes." });
     }
   
-    const { username, password } = req.body || {};
+    const { username, password, hwid } = req.body || {};
     if (!username || !password || typeof username !== "string" || typeof password !== "string") {
       return res.status(400).json({ error: "username and password are required" });
     }
@@ -157,13 +203,45 @@
     const user  = users.find(u => u.username.toLowerCase() === uname.toLowerCase());
   
     if (!user) {
-      // Fixed delay to prevent user-enumeration via timing
       await new Promise(r => setTimeout(r, 150 + Math.random() * 100));
       return res.status(401).json({ error: "invalid credentials" });
     }
   
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) return res.status(401).json({ error: "invalid credentials" });
+  
+    // ── Expiry check ─────────────────────────────────────────────────────────
+    if (user.expiresAt && Date.now() > new Date(user.expiresAt).getTime()) {
+      return res.status(403).json({ error: "Your account has expired. Contact an admin." });
+    }
+  
+    // ── IP lock ───────────────────────────────────────────────────────────────
+    if (user.lockedIp) {
+      if (user.lockedIp !== ip) {
+        return res.status(403).json({
+          error: `Login blocked: IP address mismatch. This account is locked to a different IP.`,
+        });
+      }
+    } else {
+      // First login: lock to this IP
+      user.lockedIp = ip;
+    }
+  
+    // ── HWID / Device ID lock ─────────────────────────────────────────────────
+    const clientHwid = hwid && typeof hwid === "string" ? hwid.slice(0, 128) : null;
+    if (user.lockedHwid) {
+      if (!clientHwid || user.lockedHwid !== clientHwid) {
+        return res.status(403).json({
+          error: "Login blocked: device not recognized. Contact an admin to reset your device lock.",
+        });
+      }
+    } else if (clientHwid) {
+      // First login with HWID: lock to this device
+      user.lockedHwid = clientHwid;
+    }
+  
+    // Persist any lock updates
+    saveUsers(users);
   
     return res.json({
       token: signToken({ id: user.id, username: user.username, role: user.role || "viewer" }),
@@ -175,21 +253,32 @@
     res.json({ user: { id: req.user.id, username: req.user.username, role: req.user.role } });
   });
   
-  // ─── admin routes (owner only) ───────────────────────────────────────────────
-  app.get("/api/admin/users", requireAuth, requireOwner, (req, res) => {
-    const users = loadUsers();
-    res.json({
-      users: users.map(u => ({
-        id:        u.id,
-        username:  u.username,
-        role:      u.role,
-        createdAt: u.createdAt,
-      })),
-    });
+  // ─── admin routes ─────────────────────────────────────────────────────────────
+  
+  // GET all users
+  app.get("/api/admin/users", requireAuth, requireAdminOrOwner, (req, res) => {
+    const users   = loadUsers();
+    const isOwner = req.user.role === "owner";
+  
+    const list = users
+      .filter(u => isOwner || u.role !== "admin") // admins cannot see other admins
+      .map(u => ({
+        id:         u.id,
+        username:   u.username,
+        role:       u.role || "viewer",
+        createdAt:  u.createdAt,
+        expiresAt:  u.expiresAt  || null,
+        lockedIp:   u.lockedIp   || null,
+        hwidMasked: u.lockedHwid ? maskHwid(u.lockedHwid) : null,
+        hasHwid:    !!u.lockedHwid,
+      }));
+  
+    res.json({ users: list });
   });
   
-  app.post("/api/admin/users", requireAuth, requireOwner, async (req, res) => {
-    const { username, password } = req.body || {};
+  // POST create user
+  app.post("/api/admin/users", requireAuth, requireAdminOrOwner, async (req, res) => {
+    const { username, password, role, expiresAt } = req.body || {};
   
     if (!username || !password || typeof username !== "string" || typeof password !== "string")
       return res.status(400).json({ error: "username and password are required" });
@@ -208,6 +297,17 @@
     if (uname.toLowerCase() === OWNER_USERNAME.toLowerCase())
       return res.status(409).json({ error: "that username is reserved" });
   
+    // Only owner can create admin accounts
+    const targetRole = (role === "admin" && req.user.role === "owner") ? "admin" : "viewer";
+  
+    // Validate expiresAt
+    let expiry = null;
+    if (expiresAt) {
+      const d = new Date(expiresAt);
+      if (isNaN(d.getTime())) return res.status(400).json({ error: "invalid expiresAt date" });
+      expiry = d.toISOString();
+    }
+  
     const users = loadUsers();
     if (users.find(u => u.username.toLowerCase() === uname.toLowerCase()))
       return res.status(409).json({ error: "username already exists" });
@@ -217,28 +317,44 @@
       id:           Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
       username:     uname,
       passwordHash,
-      role:         "viewer",
+      role:         targetRole,
       createdAt:    new Date().toISOString(),
+      expiresAt:    expiry,
+      lockedIp:     null,
+      lockedHwid:   null,
     };
     users.push(newUser);
     saveUsers(users);
   
     return res.status(201).json({
       ok:   true,
-      user: { id: newUser.id, username: newUser.username, role: newUser.role, createdAt: newUser.createdAt },
+      user: {
+        id:        newUser.id,
+        username:  newUser.username,
+        role:      newUser.role,
+        createdAt: newUser.createdAt,
+        expiresAt: newUser.expiresAt,
+      },
     });
   });
   
-  app.delete("/api/admin/users/:id", requireAuth, requireOwner, (req, res) => {
+  // DELETE user
+  app.delete("/api/admin/users/:id", requireAuth, requireAdminOrOwner, (req, res) => {
     const users = loadUsers();
     const idx   = users.findIndex(u => u.id === req.params.id);
     if (idx === -1) return res.status(404).json({ error: "user not found" });
+  
+    const target = users[idx];
+    if (!canModify(req.user.role, target.role))
+      return res.status(403).json({ error: "you do not have permission to delete this account" });
+  
     users.splice(idx, 1);
     saveUsers(users);
     res.json({ ok: true });
   });
   
-  app.put("/api/admin/users/:id/password", requireAuth, requireOwner, async (req, res) => {
+  // PUT reset password
+  app.put("/api/admin/users/:id/password", requireAuth, requireAdminOrOwner, async (req, res) => {
     const { password } = req.body || {};
     if (!password || typeof password !== "string" || password.length < 8)
       return res.status(400).json({ error: "new password must be at least 8 characters" });
@@ -247,7 +363,75 @@
     const user  = users.find(u => u.id === req.params.id);
     if (!user) return res.status(404).json({ error: "user not found" });
   
+    if (!canModify(req.user.role, user.role))
+      return res.status(403).json({ error: "you do not have permission to modify this account" });
+  
     user.passwordHash = await bcrypt.hash(password, 12);
+    saveUsers(users);
+    res.json({ ok: true });
+  });
+  
+  // PUT set/clear expiry
+  app.put("/api/admin/users/:id/expiry", requireAuth, requireAdminOrOwner, (req, res) => {
+    const { expiresAt } = req.body;
+    const users = loadUsers();
+    const user  = users.find(u => u.id === req.params.id);
+    if (!user) return res.status(404).json({ error: "user not found" });
+  
+    if (!canModify(req.user.role, user.role))
+      return res.status(403).json({ error: "you do not have permission to modify this account" });
+  
+    if (expiresAt === null || expiresAt === "" || expiresAt === undefined) {
+      user.expiresAt = null;
+    } else {
+      const d = new Date(expiresAt);
+      if (isNaN(d.getTime())) return res.status(400).json({ error: "invalid date" });
+      user.expiresAt = d.toISOString();
+    }
+  
+    saveUsers(users);
+    res.json({ ok: true, expiresAt: user.expiresAt });
+  });
+  
+  // PUT change role (owner only)
+  app.put("/api/admin/users/:id/role", requireAuth, requireOwner, (req, res) => {
+    const { role } = req.body || {};
+    if (!["admin", "viewer"].includes(role))
+      return res.status(400).json({ error: "role must be 'admin' or 'viewer'" });
+  
+    const users = loadUsers();
+    const user  = users.find(u => u.id === req.params.id);
+    if (!user) return res.status(404).json({ error: "user not found" });
+  
+    user.role = role;
+    saveUsers(users);
+    res.json({ ok: true, role: user.role });
+  });
+  
+  // POST reset IP lock
+  app.post("/api/admin/users/:id/reset-ip", requireAuth, requireAdminOrOwner, (req, res) => {
+    const users = loadUsers();
+    const user  = users.find(u => u.id === req.params.id);
+    if (!user) return res.status(404).json({ error: "user not found" });
+  
+    if (!canModify(req.user.role, user.role))
+      return res.status(403).json({ error: "you do not have permission to modify this account" });
+  
+    user.lockedIp = null;
+    saveUsers(users);
+    res.json({ ok: true });
+  });
+  
+  // POST reset HWID lock
+  app.post("/api/admin/users/:id/reset-hwid", requireAuth, requireAdminOrOwner, (req, res) => {
+    const users = loadUsers();
+    const user  = users.find(u => u.id === req.params.id);
+    if (!user) return res.status(404).json({ error: "user not found" });
+  
+    if (!canModify(req.user.role, user.role))
+      return res.status(403).json({ error: "you do not have permission to modify this account" });
+  
+    user.lockedHwid = null;
     saveUsers(users);
     res.json({ ok: true });
   });
@@ -255,7 +439,7 @@
   // ─── static files ────────────────────────────────────────────────────────────
   app.use(express.static(path.join(__dirname, "public")));
   
-  // ─── logs (auth-protected) ───────────────────────────────────────────────────
+  // ─── logs (auth-protected) ────────────────────────────────────────────────────
   /** @type {Array<object>} newest first */
   let logs = [];
   
@@ -283,7 +467,7 @@
   
   app.get("/api/health", (req, res) => res.json({ ok: true, uptime: process.uptime() }));
   
-  // ─── image proxy (public – only proxies already-public CDN images) ────────────
+  // ─── image proxy (public) ─────────────────────────────────────────────────────
   app.get("/api/img-proxy", (req, res) => {
     const rawUrl = req.query.url;
     if (!rawUrl || !/^https?:\/\//i.test(rawUrl)) return res.status(400).end();
@@ -318,7 +502,7 @@
     fetchUrl(rawUrl, 0);
   });
   
-  // ─── ingest route (INGEST_TOKEN protected, no JWT required) ──────────────────
+  // ─── ingest route (INGEST_TOKEN protected) ────────────────────────────────────
   function clampStr(v, n, fallback) {
     if (v === undefined || v === null) return fallback !== undefined ? fallback : null;
     return String(v).slice(0, n);
@@ -346,7 +530,7 @@
     const animals  = normalizeAnimals(b.animals);
     if (!animals.length) return res.status(400).json({ error: "no animals" });
   
-    const ts      = Number(b.timestamp);
+    const ts       = Number(b.timestamp);
     const loggedAt = ts ? (ts > 1e12 ? ts : ts * 1000) : Date.now();
   
     const entry = {
@@ -382,17 +566,25 @@
   }
   
   wss.on("connection", (ws, req) => {
-    // Authenticate via token query param
     try {
       const url   = new URL(req.url, "http://localhost");
       const token = url.searchParams.get("token");
-      if (!token || !verifyToken(token)) {
-        ws.close(1008, "unauthorized");
-        return;
+      if (!token) { ws.close(1008, "unauthorized"); return; }
+  
+      const payload = verifyToken(token);
+      if (!payload) { ws.close(1008, "unauthorized"); return; }
+  
+      // For non-owner, verify still exists
+      if (payload.role !== "owner") {
+        const users = loadUsers();
+        const user  = users.find(u => u.id === payload.id);
+        if (!user) { ws.close(1008, "unauthorized"); return; }
+        if (user.expiresAt && Date.now() > new Date(user.expiresAt).getTime()) {
+          ws.close(1008, "unauthorized"); return;
+        }
       }
     } catch (_) {
-      ws.close(1008, "unauthorized");
-      return;
+      ws.close(1008, "unauthorized"); return;
     }
   
     prune();
@@ -410,7 +602,7 @@
     });
   }, 30 * 1000);
   
-  // Periodic stats refresh (keeps 24h counts honest as logs expire)
+  // Periodic stats refresh
   setInterval(() => {
     prune();
     broadcast({ type: "stats", stats: computeStats() });
