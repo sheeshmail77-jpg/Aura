@@ -818,6 +818,21 @@
     if (!url) return null;
     return "/api/img-proxy?url=" + encodeURIComponent(url);
   }
+
+  function fallbackCopy(text, onDone) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+      onDone();
+    } catch (_) { /* clipboard unavailable, fail silently */ }
+  }
   
   function buildCard(entry) {
     const node    = cardTpl.content.firstElementChild.cloneNode(true);
@@ -879,7 +894,25 @@
     });
   
     const owner = entry.owner || "?";
-    node.querySelector(".owner-name").textContent = owner;
+    const nameEl = node.querySelector(".owner-name");
+    nameEl.textContent = owner;
+    nameEl.href = entry.ownerId
+      ? `https://www.roblox.com/users/${entry.ownerId}/profile`
+      : `https://www.roblox.com/search/users?keyword=${encodeURIComponent(owner)}`;
+    nameEl.title = entry.ownerId ? "Open Roblox profile" : "Search this username on Roblox";
+
+    const copyBtn = node.querySelector(".owner-copy");
+    copyBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const flash = () => { copyBtn.classList.add("copied"); setTimeout(() => copyBtn.classList.remove("copied"), 1200); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(owner).then(flash).catch(() => fallbackCopy(owner, flash));
+      } else {
+        fallbackCopy(owner, flash);
+      }
+    });
+
     const avaEl  = node.querySelector(".owner-ava");
     const rawAva = entry.ownerAvatar;
     if (rawAva) {
