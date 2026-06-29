@@ -377,6 +377,27 @@
     DatePicker.hide();
   });
   
+  // ── All Access toggle wires up the 3 individual toggles ────────────────────
+  const accessOgEl     = document.getElementById("accessOg");
+  const accessDragonEl = document.getElementById("accessDragon");
+  const accessSmallEl  = document.getElementById("accessSmall");
+  const accessAllEl    = document.getElementById("accessAll");
+
+  function updateAllAccessState() {
+    accessAllEl.checked = accessOgEl.checked && accessDragonEl.checked && accessSmallEl.checked;
+  }
+
+  [accessOgEl, accessDragonEl, accessSmallEl].forEach(el => {
+    el.addEventListener("change", updateAllAccessState);
+  });
+
+  accessAllEl.addEventListener("change", () => {
+    const v = accessAllEl.checked;
+    accessOgEl.checked = v;
+    accessDragonEl.checked = v;
+    accessSmallEl.checked = v;
+  });
+
   // ── Hide role selector for non-owners ────────────────────────────────────────
   document.getElementById("adminBtn").addEventListener("click", () => {
     // Show role field only for owner
@@ -403,10 +424,13 @@
     createUserErr.hidden = true;
     createUserOk.hidden  = true;
   
-    const username  = document.getElementById("newUsername").value.trim();
-    const password  = document.getElementById("newPassword").value;
-    const role      = document.getElementById("newRole").value;
-    const expiresAt = newExpiresAtInput.value || null;
+    const username     = document.getElementById("newUsername").value.trim();
+    const password     = document.getElementById("newPassword").value;
+    const role         = document.getElementById("newRole").value;
+    const expiresAt    = newExpiresAtInput.value || null;
+    const ogAccess     = accessOgEl.checked;
+    const dragonAccess = accessDragonEl.checked;
+    const smallAccess  = accessSmallEl.checked;
   
     if (!username || !password) {
       showCreateErr("Username and password are required.");
@@ -416,7 +440,7 @@
     try {
       const res  = await apiFetch("/api/admin/users", {
         method: "POST",
-        body:   JSON.stringify({ username, password, role, expiresAt }),
+        body:   JSON.stringify({ username, password, role, expiresAt, ogAccess, dragonAccess, smallAccess }),
       });
       const data = await res.json();
       if (!res.ok) { showCreateErr(data.error || "Failed to create user."); return; }
@@ -431,6 +455,10 @@
       newExpiresAtInput.value = "";
       createExpiryLabel.textContent = "No expiry";
       createExpiryClear.hidden = true;
+      accessOgEl.checked = false;
+      accessDragonEl.checked = false;
+      accessSmallEl.checked = false;
+      accessAllEl.checked = false;
   
       fetchUsers();
     } catch (err) {
@@ -479,22 +507,30 @@
         ? new Date(u.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
         : "—";
   
-      const expired    = isExpired(u.expiresAt);
-      const expiryTxt  = fmtExpiry(u.expiresAt);
+      const expired     = isExpired(u.expiresAt);
+      const expiryTxt   = fmtExpiry(u.expiresAt);
       const expiryClass = !u.expiresAt ? "expiry-none" : expired ? "expiry-expired" : "expiry-active";
   
       const ipDisplay   = u.lockedIp   || "—";
       const hwidDisplay = u.hwidMasked || "—";
   
-      // Role badge class
-      const roleCls = u.role === "admin" ? "role-badge-admin" : "role-badge-viewer";
-  
+      // Role badge
+      const roleCls = u.role === "admin" ? "role-badge-admin" : u.role === "owner" ? "role-badge-owner" : "role-badge-viewer";
+
       // Owner-only: role toggle button
       const roleToggleBtn = isOwner
         ? `<button class="btn-role btn-sm" data-action="toggle-role" data-id="${u.id}" data-role="${u.role}">
              ${u.role === "admin" ? "Remove Admin" : "Make Admin"}
            </button>`
         : "";
+
+      // Access badges
+      const accessBadges = `
+        <div class="access-badges">
+          <span class="access-badge ${u.ogAccess ? 'access-badge-og' : 'access-badge-off'}" data-access="og" data-id="${u.id}" data-state="${u.ogAccess}" title="OG Access">OG</span>
+          <span class="access-badge ${u.dragonAccess ? 'access-badge-dragon' : 'access-badge-off'}" data-access="dragon" data-id="${u.id}" data-state="${u.dragonAccess}" title="Mid Highlight Access">MID</span>
+          <span class="access-badge ${u.smallAccess ? 'access-badge-small' : 'access-badge-off'}" data-access="small" data-id="${u.id}" data-state="${u.smallAccess}" title="Newbie Highlights">NEW</span>
+        </div>`;
   
       row.innerHTML = `
         <div class="user-row-header">
@@ -507,8 +543,15 @@
           </div>
           <div class="user-row-badges">
             <span class="role-badge ${roleCls}">${u.role}</span>
-            <span class="expiry-badge ${expiryClass}">${expired ? "⚠ " : ""}${expiryTxt}</span>
+            <button class="expiry-trigger expiry-edit-btn ${expiryClass}" data-action="edit-expiry" data-id="${u.id}" data-expiry="${escHtml(u.expiresAt || "")}">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="11" height="11" style="flex-shrink:0"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
+              ${expired ? "⚠ " : ""}${expiryTxt}
+            </button>
           </div>
+        </div>
+
+        <div class="user-row-access">
+          ${accessBadges}
         </div>
   
         <div class="user-row-security">
@@ -523,13 +566,6 @@
             <span class="sec-label">Device</span>
             <span class="sec-value ${u.hasHwid ? "" : "sec-empty"}">${escHtml(hwidDisplay)}</span>
             ${u.hasHwid ? `<button class="btn-micro" data-action="reset-hwid" data-id="${u.id}">Reset</button>` : ""}
-          </div>
-          <div class="sec-item sec-item-expiry">
-            <svg class="sec-icon" viewBox="0 0 20 20" fill="currentColor" width="12" height="12"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
-            <span class="sec-label">Expires</span>
-            <button class="expiry-trigger expiry-edit-btn ${expiryClass}" data-action="edit-expiry" data-id="${u.id}" data-expiry="${escHtml(u.expiresAt || "")}">
-              ${expired ? "⚠ " : ""}${expiryTxt}
-            </button>
           </div>
         </div>
   
@@ -567,8 +603,45 @@
         });
       });
     });
+    // Access badge toggles
+    userListEl.querySelectorAll(".access-badge[data-access]").forEach(badge => {
+      badge.addEventListener("click", () => toggleAccessBadge(badge));
+    });
   }
   
+  async function toggleAccessBadge(badge) {
+    const id       = badge.dataset.id;
+    const access   = badge.dataset.access; // "og" | "dragon" | "small"
+    const current  = badge.dataset.state === "true";
+    const newState = !current;
+
+    // Find the row and read all current access states
+    const row = badge.closest(".user-row");
+    const ogBadge  = row.querySelector("[data-access='og']");
+    const drBadge  = row.querySelector("[data-access='dragon']");
+    const smBadge  = row.querySelector("[data-access='small']");
+
+    const payload = {
+      ogAccess:     ogBadge  ? ogBadge.dataset.state  === "true" : false,
+      dragonAccess: drBadge  ? drBadge.dataset.state  === "true" : false,
+      smallAccess:  smBadge  ? smBadge.dataset.state  === "true" : false,
+    };
+    if (access === "og")     payload.ogAccess     = newState;
+    if (access === "dragon") payload.dragonAccess = newState;
+    if (access === "small")  payload.smallAccess  = newState;
+
+    try {
+      const res = await apiFetch(`/api/admin/users/${id}/access`, {
+        method: "PUT",
+        body:   JSON.stringify(payload),
+      });
+      if (!res.ok) { const d = await res.json(); alert(d.error || "Failed to update access."); return; }
+      fetchUsers();
+    } catch (err) {
+      if (err.message !== "unauthorized") alert("Network error.");
+    }
+  }
+
   // ── Admin API actions ─────────────────────────────────────────────────────────
   async function deleteUser(id, name) {
     if (!confirm(`Delete login for "${name}"?\nThis cannot be undone.`)) return;
