@@ -289,14 +289,17 @@
   
     document.getElementById("dpClear").addEventListener("click", e => {
       e.stopPropagation();
-      if (_cb) _cb(null);
+      const cb = _cb;
       hide();
+      if (cb) cb(null);
     });
   
     document.getElementById("dpApply").addEventListener("click", e => {
       e.stopPropagation();
-      if (_cb) _cb(_selDate ? _selDate.toISOString() : null);
+      const cb = _cb;
+      const iso = _selDate ? _selDate.toISOString() : null;
       hide();
+      if (cb) cb(iso);
     });
   
     document.addEventListener("click", e => {
@@ -679,8 +682,8 @@
   async function setExpiry(id, iso) {
     try {
       const res  = await apiFetch(`/api/admin/users/${id}/expiry`, {
-        method: "PUT",
-        body:   JSON.stringify({ expiresAt: iso }),
+        method:  "PUT",
+        body:    JSON.stringify({ expiresAt: iso || null }),
       });
       if (!res.ok) { const d = await res.json(); alert(d.error || "Failed."); return; }
       fetchUsers();
