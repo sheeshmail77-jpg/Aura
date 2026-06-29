@@ -193,15 +193,11 @@
     }
   
     function _position(anchor) {
-      const r = anchor.getBoundingClientRect();
+      const r    = anchor.getBoundingClientRect();
+      const popW = 272;
+      const popH = 420;
       let top  = r.bottom + window.scrollY + 6;
       let left = r.left   + window.scrollX;
-      el.style.visibility = "hidden";
-      el.removeAttribute("hidden");
-      const popW = el.offsetWidth  || 272;
-      const popH = el.offsetHeight || 380;
-      el.setAttribute("hidden", "");
-      el.style.visibility = "";
       if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
       if (left < 8) left = 8;
       if (top + popH > window.innerHeight + window.scrollY - 8)
