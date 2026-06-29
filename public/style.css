@@ -137,12 +137,8 @@
     position: fixed; inset: 0; z-index: 90;
     display: flex; align-items: center; justify-content: center;
     background: rgba(0,0,0,0.65);
-    padding: 16px;
-  }
-  .modal-overlay::before {
-    content: ""; position: absolute; inset: 0;
     backdrop-filter: blur(4px);
-    pointer-events: none; z-index: -1;
+    padding: 16px;
   }
   .modal-overlay[hidden] { display: none; }
   
@@ -234,10 +230,6 @@
   .role-badge-admin {
     background: rgba(130, 100, 255, 0.15); border: 1px solid rgba(130, 100, 255, 0.4);
     color: #c4b5fd;
-  }
-  .role-badge-moderator {
-    background: rgba(34, 197, 165, 0.15); border: 1px solid rgba(34, 197, 165, 0.4);
-    color: #5eead4;
   }
   .role-badge-owner {
     background: rgba(255, 140, 0, 0.15); border: 1px solid rgba(255, 140, 0, 0.4);
@@ -414,11 +406,6 @@
     transition: background 0.12s;
   }
   .btn-role:hover { background: rgba(130,100,255,0.2); }
-  .btn-role.btn-role-dim {
-    background: rgba(255,100,100,0.08); border-color: rgba(255,100,100,0.25);
-    color: #fca5a5;
-  }
-  .btn-role.btn-role-dim:hover { background: rgba(255,100,100,0.16); }
 
   /* Date picker popover */
   .dp-popover {
@@ -565,11 +552,6 @@
     background: rgba(130, 100, 255, 0.15);
     border-color: rgba(130, 100, 255, 0.4);
     color: #c4b5fd;
-  }
-  .user-role-badge.role-moderator {
-    background: rgba(34, 197, 165, 0.15);
-    border-color: rgba(34, 197, 165, 0.4);
-    color: #5eead4;
   }
   
   .btn-admin {
@@ -748,7 +730,7 @@
   .card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .card-img.broken { display: grid; place-items: center; }
   .card-img.broken img { display: none; }
-  .card-img.broken::after { content: "?"; font-size: 24px; font-weight: 800; color: var(--faint); }
+  .card-img.broken::after { content: attr(data-fallback); font-size: 24px; font-weight: 800; color: var(--faint); }
   .card-tier { position: absolute; left: 4px; top: 4px; font-size: 9px; font-weight: 900; letter-spacing: 0.6px; padding: 2px 5px; border-radius: 5px; color: #0a0a0f; }
   .card[data-cat="og"] .card-tier     { background: var(--og); }
   .card[data-cat="dragon"] .card-tier { background: var(--dragon); color: #fff; }
