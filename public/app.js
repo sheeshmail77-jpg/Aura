@@ -94,11 +94,12 @@
     const roleBadge = document.getElementById("userRoleBadge");
     roleBadge.textContent = currentUser.role;
     roleBadge.className   = "user-role-badge";
-    if (currentUser.role === "owner") roleBadge.classList.add("role-owner");
-    if (currentUser.role === "admin") roleBadge.classList.add("role-admin");
+    if (currentUser.role === "owner")     roleBadge.classList.add("role-owner");
+    if (currentUser.role === "admin")     roleBadge.classList.add("role-admin");
+    if (currentUser.role === "moderator") roleBadge.classList.add("role-moderator");
   
-    // Show admin button for owner and admin roles
-    if (currentUser.role === "owner" || currentUser.role === "admin") {
+    // Show admin button for owner, admin, and moderator roles
+    if (currentUser.role === "owner" || currentUser.role === "admin" || currentUser.role === "moderator") {
       document.getElementById("adminBtn").removeAttribute("hidden");
     }
   
@@ -405,12 +406,27 @@
 
   // ── Hide role selector for non-owners ────────────────────────────────────────
   document.getElementById("adminBtn").addEventListener("click", () => {
-    // Show role field only for owner
     const roleWrap = document.getElementById("roleFieldWrap");
-    if (currentUser && currentUser.role === "owner") {
+    // Owner sees all role options; admin sees viewer+moderator; mod sees nothing
+    if (currentUser && (currentUser.role === "owner" || currentUser.role === "admin")) {
       roleWrap.removeAttribute("hidden");
     } else {
       roleWrap.setAttribute("hidden", "");
+    }
+    // Sync the role <select> options based on who's opening
+    const roleSelect = document.getElementById("newRole");
+    // Clear and rebuild options
+    roleSelect.innerHTML = "";
+    const viewerOpt = document.createElement("option");
+    viewerOpt.value = "viewer"; viewerOpt.textContent = "Viewer";
+    roleSelect.appendChild(viewerOpt);
+    const modOpt = document.createElement("option");
+    modOpt.value = "moderator"; modOpt.textContent = "Moderator";
+    roleSelect.appendChild(modOpt);
+    if (currentUser && currentUser.role === "owner") {
+      const adminOpt = document.createElement("option");
+      adminOpt.value = "admin"; adminOpt.textContent = "Admin";
+      roleSelect.appendChild(adminOpt);
     }
     adminOverlay.removeAttribute("hidden");
     fetchUsers();
@@ -520,14 +536,27 @@
       const hwidDisplay = u.hwidMasked || "—";
   
       // Role badge
-      const roleCls = u.role === "admin" ? "role-badge-admin" : u.role === "owner" ? "role-badge-owner" : "role-badge-viewer";
+      const roleCls = u.role === "admin" ? "role-badge-admin" : u.role === "owner" ? "role-badge-owner" : u.role === "moderator" ? "role-badge-moderator" : "role-badge-viewer";
 
-      // Owner-only: role toggle button
-      const roleToggleBtn = isOwner
-        ? `<button class="btn-role btn-sm" data-action="toggle-role" data-id="${u.id}" data-role="${u.role}">
-             ${u.role === "admin" ? "Remove Admin" : "Make Admin"}
-           </button>`
-        : "";
+      // Role toggle: owner can promote/demote anyone; admin can toggle viewer↔moderator
+      const isAdmin = currentUser && currentUser.role === "admin";
+      let roleToggleBtn = "";
+      if (isOwner) {
+        if (u.role === "admin") {
+          roleToggleBtn = `<button class="btn-role btn-sm" data-action="toggle-role" data-id="${u.id}" data-role="${u.role}" data-newrole="viewer">Remove Admin</button>`;
+        } else if (u.role === "moderator") {
+          roleToggleBtn = `<button class="btn-role btn-sm" data-action="toggle-role" data-id="${u.id}" data-role="${u.role}" data-newrole="admin">Make Admin</button>
+                          <button class="btn-role btn-sm btn-role-dim" data-action="toggle-role" data-id="${u.id}" data-role="${u.role}" data-newrole="viewer">Remove Mod</button>`;
+        } else {
+          roleToggleBtn = `<button class="btn-role btn-sm" data-action="toggle-role" data-id="${u.id}" data-role="${u.role}" data-newrole="moderator">Make Mod</button>`;
+        }
+      } else if (isAdmin) {
+        if (u.role === "moderator") {
+          roleToggleBtn = `<button class="btn-role btn-sm btn-role-dim" data-action="toggle-role" data-id="${u.id}" data-role="${u.role}" data-newrole="viewer">Remove Mod</button>`;
+        } else if (u.role === "viewer") {
+          roleToggleBtn = `<button class="btn-role btn-sm" data-action="toggle-role" data-id="${u.id}" data-role="${u.role}" data-newrole="moderator">Make Mod</button>`;
+        }
+      }
 
       // Access badges
       const accessBadges = `
@@ -598,7 +627,7 @@
       btn.addEventListener("click", () => resetHwid(btn.dataset.id));
     });
     userListEl.querySelectorAll("[data-action='toggle-role']").forEach(btn => {
-      btn.addEventListener("click", () => toggleRole(btn.dataset.id, btn.dataset.role));
+      btn.addEventListener("click", () => toggleRole(btn.dataset.id, btn.dataset.role, btn.dataset.newrole));
     });
     userListEl.querySelectorAll("[data-action='edit-expiry']").forEach(btn => {
       btn.addEventListener("click", e => {
@@ -694,12 +723,13 @@
     }
   }
   
-  async function toggleRole(id, currentRole) {
-    const newRole = currentRole === "admin" ? "viewer" : "admin";
-    const label   = newRole === "admin" ? "promote to Admin" : "demote to Viewer";
+  async function toggleRole(id, currentRole, newRole) {
+    const label = newRole === "admin" ? "promote to Admin"
+                : newRole === "moderator" ? "promote to Moderator"
+                : `demote to Viewer`;
     if (!confirm(`Are you sure you want to ${label}?`)) return;
     try {
-      const res  = await apiFetch(`/api/admin/users/${id}/role`, {
+      const res = await apiFetch(`/api/admin/users/${id}/role`, {
         method: "PUT",
         body:   JSON.stringify({ role: newRole }),
       });
