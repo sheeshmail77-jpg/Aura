@@ -459,10 +459,14 @@
     res.json({ ok: true });
   });
   
-  // ─── single-log public JSON ───────────────────────────────────────────────────
-  app.get("/api/log/:id", (req, res) => {
+  // ─── single-log auth-protected JSON (5-min expiry) ───────────────────────────
+  const LOG_VIEW_MS = 5 * 60 * 1000; // 5 minutes
+
+  app.get("/api/log/:id", requireAuth, (req, res) => {
     const entry = logs.find(l => l.id === req.params.id);
     if (!entry) return res.status(404).json({ error: "log not found or expired" });
+    if (Date.now() - entry.receivedAt > LOG_VIEW_MS)
+      return res.status(410).json({ error: "This find has expired (5 min limit)." });
     res.json({ ok: true, entry });
   });
 
@@ -765,16 +769,33 @@
       return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
     }
 
-    fetch("/api/log/" + LOG_ID)
-      .then(r => r.json())
-      .then(d => {
-        if (!d.ok) throw new Error(d.error || "not found");
-        render(d.entry);
+    // Auth check – redirect to login if no token stored
+    const _token = localStorage.getItem("bl_token");
+    if (!_token) {
+      window.location.replace("/?next=" + encodeURIComponent(window.location.pathname));
+    } else {
+      fetch("/api/log/" + LOG_ID, {
+        headers: { "Authorization": "Bearer " + _token }
       })
-      .catch(err => {
-        document.getElementById("root").innerHTML =
-          '<div class="state error">⚠ This log has expired or does not exist.</div>';
-      });
+        .then(r => {
+          if (r.status === 401 || r.status === 403) {
+            window.location.replace("/?next=" + encodeURIComponent(window.location.pathname));
+            throw new Error("unauth");
+          }
+          return r.json();
+        })
+        .then(d => {
+          if (!d.ok) throw new Error(d.error || "not found");
+          render(d.entry);
+        })
+        .catch(err => {
+          if (err.message === "unauth") return;
+          const isExpired = err.message && err.message.toLowerCase().includes("expired");
+          document.getElementById("root").innerHTML = isExpired
+            ? '<div class="state error">⏱ This find has expired — links are only valid for 5 minutes.</div>'
+            : '<div class="state error">⚠ This log does not exist or has expired.</div>';
+        });
+    }
   </script>
   <div class="orbs" aria-hidden="true">
     <span class="orb orb-1"></span>
