@@ -1044,3 +1044,157 @@
     connect();
   timerTick = setInterval(tickTimers, 1000);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// GET ROLE (Discord verification)
+// ═══════════════════════════════════════════════════════════════════════════════
+(function initGetRole() {
+  const overlay       = document.getElementById("getRoleOverlay");
+  const getRoleBtn    = document.getElementById("getRoleBtn");
+  const closeBtn      = document.getElementById("getRoleClose");
+  const step1         = document.getElementById("grStep1");
+  const step2         = document.getElementById("grStep2");
+  const step1Ind      = document.getElementById("grStep1Ind");
+  const step2Ind      = document.getElementById("grStep2Ind");
+  const discordIdInp  = document.getElementById("grDiscordId");
+  const codeInp       = document.getElementById("grCode");
+  const sendBtn       = document.getElementById("grSendCode");
+  const sendBtnText   = document.getElementById("grSendCodeText");
+  const sendSpinner   = document.getElementById("grSendSpinner");
+  const verifyBtn     = document.getElementById("grVerifyCode");
+  const verifyText    = document.getElementById("grVerifyText");
+  const verifySpinner = document.getElementById("grVerifySpinner");
+  const backBtn       = document.getElementById("grBack");
+  const err1          = document.getElementById("grStep1Error");
+  const err2          = document.getElementById("grStep2Error");
+  const success       = document.getElementById("grSuccess");
+
+  let pendingDiscordId = null;
+
+  function openModal() {
+    overlay.removeAttribute("hidden");
+    showStep(1);
+    discordIdInp.value = "";
+    codeInp.value      = "";
+    err1.hidden = true;
+    err2.hidden = true;
+    success.hidden = true;
+    discordIdInp.focus();
+  }
+
+  function closeModal() {
+    overlay.setAttribute("hidden", "");
+    pendingDiscordId = null;
+  }
+
+  function showStep(n) {
+    if (n === 1) {
+      step1.removeAttribute("hidden");
+      step2.setAttribute("hidden", "");
+      step1Ind.classList.remove("gr-step-inactive");
+      step2Ind.classList.add("gr-step-inactive");
+    } else {
+      step1.setAttribute("hidden", "");
+      step2.removeAttribute("hidden");
+      step1Ind.classList.add("gr-step-inactive");
+      step2Ind.classList.remove("gr-step-inactive");
+      codeInp.focus();
+    }
+  }
+
+  function showErr(el, msg) {
+    el.textContent = msg;
+    el.hidden = false;
+  }
+
+  // Open / close
+  getRoleBtn.addEventListener("click", openModal);
+  closeBtn.addEventListener("click", closeModal);
+  overlay.addEventListener("click", e => { if (e.target === overlay) closeModal(); });
+
+  // Step 1: send code
+  sendBtn.addEventListener("click", async () => {
+    const id = discordIdInp.value.trim();
+    err1.hidden = true;
+
+    if (!id) { showErr(err1, "Please enter your Discord User ID."); return; }
+    if (!/^\d{17,20}$/.test(id)) { showErr(err1, "Invalid Discord ID — it should be 17–20 digits."); return; }
+
+    sendBtn.disabled    = true;
+    sendBtnText.hidden  = true;
+    sendSpinner.removeAttribute("hidden");
+
+    try {
+      const res  = await apiFetch("/api/discord/send-code", {
+        method: "POST",
+        body:   JSON.stringify({ discordId: id }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) { showErr(err1, data.error || "Failed to send code."); return; }
+
+      pendingDiscordId = id;
+      showStep(2);
+    } catch (_) {
+      showErr(err1, "Network error. Please try again.");
+    } finally {
+      sendBtn.disabled    = false;
+      sendBtnText.hidden  = false;
+      sendSpinner.setAttribute("hidden", "");
+    }
+  });
+
+  // Step 2: back
+  backBtn.addEventListener("click", () => {
+    err2.hidden    = true;
+    success.hidden = true;
+    showStep(1);
+  });
+
+  // Step 2: verify
+  verifyBtn.addEventListener("click", async () => {
+    const code = codeInp.value.trim();
+    err2.hidden    = true;
+    success.hidden = true;
+
+    if (!code) { showErr(err2, "Please enter the 6-digit code."); return; }
+    if (!/^\d{6}$/.test(code)) { showErr(err2, "Code must be exactly 6 digits."); return; }
+
+    verifyBtn.disabled    = true;
+    verifyText.hidden     = true;
+    verifySpinner.removeAttribute("hidden");
+
+    try {
+      const res  = await apiFetch("/api/discord/verify-code", {
+        method: "POST",
+        body:   JSON.stringify({ discordId: pendingDiscordId, code }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) { showErr(err2, data.error || "Verification failed."); return; }
+
+      const rolesText = data.assigned && data.assigned.length
+        ? data.assigned.join(", ")
+        : "your roles";
+      const failText  = data.failed && data.failed.length
+        ? `  (Could not assign: ${data.failed.join(", ")})` : "";
+
+      success.textContent = `✅ Roles assigned: ${rolesText}${failText}`;
+      success.hidden      = false;
+      codeInp.value       = "";
+
+      // Auto-close after 3 seconds
+      setTimeout(closeModal, 3500);
+    } catch (_) {
+      showErr(err2, "Network error. Please try again.");
+    } finally {
+      verifyBtn.disabled    = false;
+      verifyText.hidden     = false;
+      verifySpinner.setAttribute("hidden", "");
+    }
+  });
+
+  // Allow pressing Enter in code field to submit
+  codeInp.addEventListener("keydown", e => { if (e.key === "Enter") verifyBtn.click(); });
+  discordIdInp.addEventListener("keydown", e => { if (e.key === "Enter") sendBtn.click(); });
+})();
