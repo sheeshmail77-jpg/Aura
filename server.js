@@ -485,15 +485,20 @@
         ...(bodyStr ? { "Content-Length": Buffer.byteLength(bodyStr) } : {}),
       },
     };
-    const req = https.request(options, res => {
+    const req = https.request(options, apiRes => {
       let data = "";
-      res.on("data", c => { data += c; });
-      res.on("end", () => {
-        try { cb(null, res.statusCode, JSON.parse(data)); }
-        catch (_) { cb(null, res.statusCode, {}); }
+      apiRes.on("data", c => { data += c; });
+      apiRes.on("end", () => {
+        let parsed = {};
+        try { parsed = JSON.parse(data); } catch (_) {}
+        // Always log non-2xx Discord responses so you can see exactly what's wrong
+        if (apiRes.statusCode < 200 || apiRes.statusCode >= 300) {
+          console.error(`[discord] REST ${method} ${path} → HTTP ${apiRes.statusCode}`, parsed);
+        }
+        cb(null, apiRes.statusCode, parsed);
       });
     });
-    req.on("error", cb);
+    req.on("error", e => { console.error(`[discord] REST ${method} ${path} error:`, e.message); cb(e); });
     if (bodyStr) req.write(bodyStr);
     req.end();
   }
@@ -509,8 +514,17 @@
 
     // Step 1: create DM channel
     discordApiRequest("POST", "/users/@me/channels", { recipient_id: id }, (err, status, data) => {
-      if (err || status < 200 || status >= 300) {
-        return res.status(502).json({ error: "Could not open a DM with that Discord ID. Make sure the ID is correct and your DMs are open." });
+      if (err) {
+        return res.status(502).json({ error: "Network error contacting Discord. Check your server logs." });
+      }
+      if (status === 401) {
+        return res.status(502).json({ error: "Bot token is invalid or expired. The server owner needs to reset DISCORD_BOT_TOKEN in the .env file." });
+      }
+      if (status === 400) {
+        return res.status(400).json({ error: `Invalid Discord ID or Discord rejected the request: ${data.message || JSON.stringify(data)}` });
+      }
+      if (status < 200 || status >= 300) {
+        return res.status(502).json({ error: `Discord returned an error (HTTP ${status}): ${data.message || JSON.stringify(data)}` });
       }
       const channelId = data.id;
       if (!channelId) return res.status(502).json({ error: "Discord did not return a DM channel." });
@@ -523,10 +537,11 @@
 
       // Step 3: send DM
       const msg = `🔐 **Brainrot Logger Role Verification**\n\nYour verification code is: **${code}**\n\nEnter this on the site to claim your Discord roles. This code expires in 10 minutes.`;
-      discordApiRequest("POST", `/channels/${channelId}/messages`, { content: msg }, (err2, status2) => {
+      discordApiRequest("POST", `/channels/${channelId}/messages`, { content: msg }, (err2, status2, data2) => {
         if (err2 || status2 < 200 || status2 >= 300) {
           discordCodes.delete(id);
-          return res.status(502).json({ error: "Could not send the DM. Make sure your DMs are open from server members." });
+          const reason = data2 && data2.message ? data2.message : (err2 ? err2.message : `HTTP ${status2}`);
+          return res.status(502).json({ error: `Could not send the DM (${reason}). Make sure your DMs are open from server members.` });
         }
         res.json({ ok: true, message: "Code sent! Check your Discord DMs." });
       });
