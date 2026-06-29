@@ -542,6 +542,8 @@
     border-radius: 6px; background: rgba(255,255,255,0.08);
     border: 1px solid var(--border-strong); color: var(--muted);
     text-transform: uppercase; letter-spacing: 0.5px;
+    /* ── alignment fix: centres badge text perfectly in the pill ── */
+    display: inline-flex; align-items: center; line-height: 1;
   }
   .user-role-badge.role-owner {
     background: rgba(255, 140, 0, 0.15);
