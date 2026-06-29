@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Live Brainrot Plaza log feed - OG, Dragon and Small finds in real time." />
+    <title>Brainrot Logger</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="bg-orbs" aria-hidden="true">
+      <span class="orb orb-1"></span>
+      <span class="orb orb-2"></span>
+      <span class="orb orb-3"></span>
+    </div>
+
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">BR</div>
+        <div class="brand-text">
+          <h1>Brainrot Logger</h1>
+          <p>Live Plaza finds &middot; real-time feed</p>
+        </div>
+      </div>
+
+      <div class="conn" id="conn">
+        <span class="conn-dot" id="connDot"></span>
+        <span id="connText">connecting&hellip;</span>
+      </div>
+    </header>
+
+    <section class="stats" aria-label="Last 24 hours">
+      <div class="stats-label">Last 24 Hours</div>
+      <div class="stat-cards">
+        <div class="stat-card total">
+          <div class="stat-num" id="statTotal">0</div>
+          <div class="stat-name">Total Logs</div>
+        </div>
+        <div class="stat-card og">
+          <div class="stat-num" id="statOg">0</div>
+          <div class="stat-name">OGs</div>
+        </div>
+        <div class="stat-card dragon">
+          <div class="stat-num" id="statDragon">0</div>
+          <div class="stat-name">Dragons</div>
+        </div>
+        <div class="stat-card small">
+          <div class="stat-num" id="statSmall">0</div>
+          <div class="stat-name">Small</div>
+        </div>
+      </div>
+    </section>
+
+    <main class="feeds">
+      <section class="feed feed-og">
+        <header class="feed-head">
+          <span class="feed-pill">OG</span>
+          <h2>Recent OGs</h2>
+          <span class="feed-count" id="countOg">0</span>
+        </header>
+        <div class="feed-list" id="listOg">
+          <div class="empty" id="emptyOg">No OG finds yet&hellip;</div>
+        </div>
+      </section>
+
+      <section class="feed feed-dragon">
+        <header class="feed-head">
+          <span class="feed-pill">DRAGON</span>
+          <h2>Recent Dragons</h2>
+          <span class="feed-count" id="countDragon">0</span>
+        </header>
+        <div class="feed-list" id="listDragon">
+          <div class="empty" id="emptyDragon">No dragon finds yet&hellip;</div>
+        </div>
+      </section>
+
+      <section class="feed feed-small">
+        <header class="feed-head">
+          <span class="feed-pill">SMALL</span>
+          <h2>Recent Small</h2>
+          <span class="feed-count" id="countSmall">0</span>
+        </header>
+        <div class="feed-list" id="listSmall">
+          <div class="empty" id="emptySmall">No small finds yet&hellip;</div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <span>Brainrot Logger</span>
+      <span class="dot">&middot;</span>
+      <span>logs auto-expire after 24h</span>
+    </footer>
+
+    <template id="cardTpl">
+      <article class="card">
+        <div class="card-glow"></div>
+        <div class="card-img">
+          <img alt="" loading="lazy" />
+          <span class="card-tier"></span>
+        </div>
+        <div class="card-body">
+          <div class="card-title"></div>
+          <div class="card-animals"></div>
+          <div class="card-meta">
+            <div class="owner">
+              <span class="owner-ava"></span>
+              <span class="owner-name"></span>
+            </div>
+            <a class="join-btn" target="_blank" rel="noopener">Join</a>
+          </div>
+        </div>
+        <div class="card-time"><span class="ago"></span></div>
+      </article>
+    </template>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "name": "brainrot-logger",
+  "version": "1.0.0",
+  "description": "Real-time Brainrot Plaza log feed (OG / Dragon / Small) with live WebSocket updates and 24h stats.",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  }
+}
