@@ -94,12 +94,11 @@
     const roleBadge = document.getElementById("userRoleBadge");
     roleBadge.textContent = currentUser.role;
     roleBadge.className   = "user-role-badge";
-    if (currentUser.role === "owner")     roleBadge.classList.add("role-owner");
-    if (currentUser.role === "admin")     roleBadge.classList.add("role-admin");
-    if (currentUser.role === "moderator") roleBadge.classList.add("role-moderator");
+    if (currentUser.role === "owner") roleBadge.classList.add("role-owner");
+    if (currentUser.role === "admin") roleBadge.classList.add("role-admin");
   
-    // Show admin button for owner, admin, and moderator roles
-    if (currentUser.role === "owner" || currentUser.role === "admin" || currentUser.role === "moderator") {
+    // Show admin button for owner and admin roles
+    if (currentUser.role === "owner" || currentUser.role === "admin") {
       document.getElementById("adminBtn").removeAttribute("hidden");
     }
   
@@ -136,12 +135,6 @@
   
       saveToken(data.token);
       currentUser = data.user;
-      // If redirected here from a /log/... link, go back there now
-      const nextPath = new URLSearchParams(window.location.search).get("next");
-      if (nextPath && nextPath.startsWith("/log/")) {
-        window.location.replace(nextPath);
-        return;
-      }
       showApp();
     } catch (_) {
       showLoginErr("Network error. Please try again.");
@@ -200,11 +193,15 @@
     }
   
     function _position(anchor) {
-      const r    = anchor.getBoundingClientRect();
-      const popW = 272;
-      const popH = 420;
+      const r = anchor.getBoundingClientRect();
       let top  = r.bottom + window.scrollY + 6;
       let left = r.left   + window.scrollX;
+      el.style.visibility = "hidden";
+      el.removeAttribute("hidden");
+      const popW = el.offsetWidth  || 272;
+      const popH = el.offsetHeight || 380;
+      el.setAttribute("hidden", "");
+      el.style.visibility = "";
       if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
       if (left < 8) left = 8;
       if (top + popH > window.innerHeight + window.scrollY - 8)
@@ -406,27 +403,12 @@
 
   // ── Hide role selector for non-owners ────────────────────────────────────────
   document.getElementById("adminBtn").addEventListener("click", () => {
+    // Show role field only for owner
     const roleWrap = document.getElementById("roleFieldWrap");
-    // Owner sees all role options; admin sees viewer+moderator; mod sees nothing
-    if (currentUser && (currentUser.role === "owner" || currentUser.role === "admin")) {
+    if (currentUser && currentUser.role === "owner") {
       roleWrap.removeAttribute("hidden");
     } else {
       roleWrap.setAttribute("hidden", "");
-    }
-    // Sync the role <select> options based on who's opening
-    const roleSelect = document.getElementById("newRole");
-    // Clear and rebuild options
-    roleSelect.innerHTML = "";
-    const viewerOpt = document.createElement("option");
-    viewerOpt.value = "viewer"; viewerOpt.textContent = "Viewer";
-    roleSelect.appendChild(viewerOpt);
-    const modOpt = document.createElement("option");
-    modOpt.value = "moderator"; modOpt.textContent = "Moderator";
-    roleSelect.appendChild(modOpt);
-    if (currentUser && currentUser.role === "owner") {
-      const adminOpt = document.createElement("option");
-      adminOpt.value = "admin"; adminOpt.textContent = "Admin";
-      roleSelect.appendChild(adminOpt);
     }
     adminOverlay.removeAttribute("hidden");
     fetchUsers();
@@ -536,27 +518,14 @@
       const hwidDisplay = u.hwidMasked || "—";
   
       // Role badge
-      const roleCls = u.role === "admin" ? "role-badge-admin" : u.role === "owner" ? "role-badge-owner" : u.role === "moderator" ? "role-badge-moderator" : "role-badge-viewer";
+      const roleCls = u.role === "admin" ? "role-badge-admin" : u.role === "owner" ? "role-badge-owner" : "role-badge-viewer";
 
-      // Role toggle: owner can promote/demote anyone; admin can toggle viewer↔moderator
-      const isAdmin = currentUser && currentUser.role === "admin";
-      let roleToggleBtn = "";
-      if (isOwner) {
-        if (u.role === "admin") {
-          roleToggleBtn = `<button class="btn-role btn-sm" data-action="toggle-role" data-id="${u.id}" data-role="${u.role}" data-newrole="viewer">Remove Admin</button>`;
-        } else if (u.role === "moderator") {
-          roleToggleBtn = `<button class="btn-role btn-sm" data-action="toggle-role" data-id="${u.id}" data-role="${u.role}" data-newrole="admin">Make Admin</button>
-                          <button class="btn-role btn-sm btn-role-dim" data-action="toggle-role" data-id="${u.id}" data-role="${u.role}" data-newrole="viewer">Remove Mod</button>`;
-        } else {
-          roleToggleBtn = `<button class="btn-role btn-sm" data-action="toggle-role" data-id="${u.id}" data-role="${u.role}" data-newrole="moderator">Make Mod</button>`;
-        }
-      } else if (isAdmin) {
-        if (u.role === "moderator") {
-          roleToggleBtn = `<button class="btn-role btn-sm btn-role-dim" data-action="toggle-role" data-id="${u.id}" data-role="${u.role}" data-newrole="viewer">Remove Mod</button>`;
-        } else if (u.role === "viewer") {
-          roleToggleBtn = `<button class="btn-role btn-sm" data-action="toggle-role" data-id="${u.id}" data-role="${u.role}" data-newrole="moderator">Make Mod</button>`;
-        }
-      }
+      // Owner-only: role toggle button
+      const roleToggleBtn = isOwner
+        ? `<button class="btn-role btn-sm" data-action="toggle-role" data-id="${u.id}" data-role="${u.role}">
+             ${u.role === "admin" ? "Remove Admin" : "Make Admin"}
+           </button>`
+        : "";
 
       // Access badges
       const accessBadges = `
@@ -627,7 +596,7 @@
       btn.addEventListener("click", () => resetHwid(btn.dataset.id));
     });
     userListEl.querySelectorAll("[data-action='toggle-role']").forEach(btn => {
-      btn.addEventListener("click", () => toggleRole(btn.dataset.id, btn.dataset.role, btn.dataset.newrole));
+      btn.addEventListener("click", () => toggleRole(btn.dataset.id, btn.dataset.role));
     });
     userListEl.querySelectorAll("[data-action='edit-expiry']").forEach(btn => {
       btn.addEventListener("click", e => {
@@ -723,13 +692,12 @@
     }
   }
   
-  async function toggleRole(id, currentRole, newRole) {
-    const label = newRole === "admin" ? "promote to Admin"
-                : newRole === "moderator" ? "promote to Moderator"
-                : `demote to Viewer`;
+  async function toggleRole(id, currentRole) {
+    const newRole = currentRole === "admin" ? "viewer" : "admin";
+    const label   = newRole === "admin" ? "promote to Admin" : "demote to Viewer";
     if (!confirm(`Are you sure you want to ${label}?`)) return;
     try {
-      const res = await apiFetch(`/api/admin/users/${id}/role`, {
+      const res  = await apiFetch(`/api/admin/users/${id}/role`, {
         method: "PUT",
         body:   JSON.stringify({ role: newRole }),
       });
@@ -867,9 +835,21 @@
     if (rawUrl) {
       img.src = proxyImg(rawUrl);
       img.alt = primary.name;
-      img.addEventListener("error", () => imgWrap.classList.add("broken"), { once: true });
+      img.addEventListener("error", () => {
+        imgWrap.classList.add("broken");
+        imgWrap.dataset.fallback = (primary.name || "?").charAt(0).toUpperCase();
+        // Re-fetch the proxy URL directly so the real failure reason (404, upstream
+        // error, bad content-type, etc.) shows up in the console instead of just
+        // a generic broken-image icon with no explanation.
+        fetch(img.src).then(r => {
+          if (!r.ok) return r.json().catch(() => null).then(body => {
+            console.warn("[image] failed to load:", { animal: primary.name, sourceUrl: rawUrl, status: r.status, ...body });
+          });
+        }).catch(err => console.warn("[image] proxy request failed:", { animal: primary.name, sourceUrl: rawUrl, error: err.message }));
+      }, { once: true });
     } else {
       imgWrap.classList.add("broken");
+      imgWrap.dataset.fallback = (primary.name || "?").charAt(0).toUpperCase();
     }
     node.querySelector(".card-tier").textContent = tierLabel(entry.category);
     node.querySelector(".card-title").textContent =
