@@ -81,45 +81,58 @@ app.get("/api/health", (req, res) => res.json({ ok: true, uptime: process.uptime
 // ---- image proxy ----
 // Fetches remote images server-side (following redirects) so the browser
 // doesn't hit CORS restrictions on wiki / CDN redirect chains.
+// Sends browser-like headers so Roblox CDN / asset delivery doesn't block the request.
 app.get("/api/img-proxy", (req, res) => {
   const rawUrl = req.query.url;
   if (!rawUrl || !/^https?:\/\//i.test(rawUrl)) {
     return res.status(400).end();
   }
 
+  const PROXY_HEADERS = {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.roblox.com/",
+  };
+
   function fetchUrl(targetUrl, redirectCount) {
     if (redirectCount > 8) return res.status(502).end();
     const mod = /^https:/i.test(targetUrl) ? https : http;
-    const request = mod.get(targetUrl, { timeout: 8000 }, (upstream) => {
-      // Follow redirects
-      if (
-        upstream.statusCode >= 300 &&
-        upstream.statusCode < 400 &&
-        upstream.headers.location
-      ) {
-        upstream.resume(); // drain so the socket can be reused
-        let nextUrl = upstream.headers.location;
-        // Resolve relative redirects
-        if (nextUrl.startsWith("/")) {
-          const parsed = new URL(targetUrl);
-          nextUrl = parsed.origin + nextUrl;
+    const request = mod.get(
+      targetUrl,
+      { timeout: 8000, headers: PROXY_HEADERS },
+      (upstream) => {
+        // Follow redirects
+        if (
+          upstream.statusCode >= 300 &&
+          upstream.statusCode < 400 &&
+          upstream.headers.location
+        ) {
+          upstream.resume(); // drain so the socket can be reused
+          let nextUrl = upstream.headers.location;
+          // Resolve relative redirects
+          if (nextUrl.startsWith("/")) {
+            const parsed = new URL(targetUrl);
+            nextUrl = parsed.origin + nextUrl;
+          }
+          return fetchUrl(nextUrl, redirectCount + 1);
         }
-        return fetchUrl(nextUrl, redirectCount + 1);
-      }
 
-      if (upstream.statusCode < 200 || upstream.statusCode >= 300) {
-        upstream.resume();
-        return res.status(502).end();
-      }
+        if (upstream.statusCode < 200 || upstream.statusCode >= 300) {
+          upstream.resume();
+          return res.status(502).end();
+        }
 
-      res.setHeader(
-        "Content-Type",
-        upstream.headers["content-type"] || "image/png"
-      );
-      // Cache for 24 h on the client, 1 h on any CDN in between
-      res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=3600");
-      upstream.pipe(res);
-    });
+        res.setHeader(
+          "Content-Type",
+          upstream.headers["content-type"] || "image/png"
+        );
+        // Cache for 24 h on the client, 1 h on any CDN in between
+        res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=3600");
+        upstream.pipe(res);
+      }
+    );
 
     request.on("error", () => {
       if (!res.headersSent) res.status(502).end();
