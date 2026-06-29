@@ -975,6 +975,108 @@
     broadcastStats();
   }, 60 * 1000);
   
+  // ─── Discord Gateway (bot presence / online status) ─────────────────────────
+  // The REST-only approach above sends DMs fine, but the bot never appears
+  // "Online" in the server because it hasn't opened a Gateway (WebSocket)
+  // connection.  This block opens a minimal Gateway session so the bot shows
+  // as Online and can send/receive messages.
+  (function startDiscordGateway() {
+    const botToken = process.env.DISCORD_BOT_TOKEN;
+    if (!botToken) {
+      console.warn("[discord] DISCORD_BOT_TOKEN not set – bot will stay offline.");
+      return;
+    }
+
+    const { WebSocket: GWS } = require("ws");
+    let gws              = null;
+    let hbInterval       = null;
+    let seq              = null;
+    let sessionId        = null;
+    let resumeUrl        = null;
+
+    function send(op, d) {
+      if (gws && gws.readyState === 1) gws.send(JSON.stringify({ op, d }));
+    }
+
+    function identify() {
+      send(2, {
+        token:   botToken,
+        intents: 0, // no privileged intents needed for presence + DMs
+        properties: { os: "linux", browser: "brainrot-logger", device: "brainrot-logger" },
+      });
+    }
+
+    function connect(url) {
+      const target = url || "wss://gateway.discord.gg/?v=10&encoding=json";
+      try { gws = new GWS(target); }
+      catch (e) { console.error("[discord] Could not create Gateway WS:", e.message); scheduleReconnect(); return; }
+
+      gws.on("open", () => console.log("[discord] Gateway connected."));
+
+      gws.on("message", raw => {
+        let msg;
+        try { msg = JSON.parse(raw); } catch (_) { return; }
+        const { op, d, s, t } = msg;
+        if (s != null) seq = s;
+
+        switch (op) {
+          case 10: // Hello – start heartbeating then identify / resume
+            if (hbInterval) clearInterval(hbInterval);
+            hbInterval = setInterval(() => send(1, seq), d.heartbeat_interval);
+            if (sessionId && resumeUrl) {
+              send(6, { token: botToken, session_id: sessionId, seq });
+            } else {
+              identify();
+            }
+            break;
+
+          case 0: // Dispatch
+            if (t === "READY") {
+              sessionId = d.session_id;
+              resumeUrl = d.resume_gateway_url;
+              console.log("[discord] Bot online as", d.user && d.user.username + "#" + d.user.discriminator);
+            }
+            break;
+
+          case 1:  // Server-requested heartbeat
+            send(1, seq);
+            break;
+
+          case 7:  // Reconnect
+            gws.close(1000, "reconnect requested");
+            break;
+
+          case 9:  // Invalid session
+            console.warn("[discord] Invalid session – re-identifying in 3 s…");
+            sessionId = null; resumeUrl = null; seq = null;
+            setTimeout(identify, 3000 + Math.random() * 2000);
+            break;
+
+          case 11: // Heartbeat ACK – all good
+            break;
+        }
+      });
+
+      gws.on("close", code => {
+        if (hbInterval) { clearInterval(hbInterval); hbInterval = null; }
+        if (code === 4004) { console.error("[discord] Invalid bot token – not reconnecting."); return; }
+        if (code === 4014) { console.error("[discord] Disallowed intents – not reconnecting."); return; }
+        console.log(`[discord] Gateway closed (${code}). Reconnecting in 5 s…`);
+        scheduleReconnect(code === 4000 ? null : resumeUrl); // non-recoverable close → fresh connect
+      });
+
+      gws.on("error", err => console.error("[discord] Gateway error:", err.message));
+    }
+
+    let reconnTimer = null;
+    function scheduleReconnect(url) {
+      if (reconnTimer) return;
+      reconnTimer = setTimeout(() => { reconnTimer = null; connect(url); }, 5000);
+    }
+
+    connect();
+  })();
+
   // ─── start ────────────────────────────────────────────────────────────────────
   server.listen(PORT, () => {
     console.log(`Brainrot Logger listening on http://localhost:${PORT}`);
