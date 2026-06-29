@@ -188,14 +188,14 @@
   .field-row .btn-primary { flex-shrink: 0; align-self: flex-end; margin-bottom: 0; }
   
   /* User list */
-  .user-list { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
+  .user-list { display: flex; flex-direction: column; gap: 10px; max-height: 340px; overflow-y: auto; }
   .user-list-empty { color: var(--faint); font-size: 13.5px; text-align: center; padding: 24px 0; }
   
   .user-row {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    display: flex; flex-direction: column; gap: 8px;
     background: rgba(255,255,255,0.03);
     border: 1px solid var(--border);
-    border-radius: 10px; padding: 10px 14px;
+    border-radius: 12px; padding: 12px 14px;
   }
   .user-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
   .user-row-avatar {
@@ -207,9 +207,261 @@
   }
   .user-row-name { font-size: 13.5px; font-weight: 700; }
   .user-row-meta { font-size: 11.5px; color: var(--faint); margin-top: 1px; }
-  .user-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .user-row-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
+
+  .user-row-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .user-row-identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .user-row-ident { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .user-row-created { font-size: 11px; color: var(--faint); font-weight: 500; }
+  .user-row-badges { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+
+  /* Role badges */
+  .role-badge {
+    font-size: 10px; font-weight: 800; padding: 3px 8px;
+    border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  .role-badge-viewer {
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14);
+    color: var(--muted);
+  }
+  .role-badge-admin {
+    background: rgba(130, 100, 255, 0.15); border: 1px solid rgba(130, 100, 255, 0.4);
+    color: #c4b5fd;
+  }
+  .role-badge-owner {
+    background: rgba(255, 140, 0, 0.15); border: 1px solid rgba(255, 140, 0, 0.4);
+    color: var(--og);
+  }
+
+  /* Expiry button in user row */
+  .expiry-edit-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10.5px; font-weight: 700;
+    padding: 3px 9px; border-radius: 6px; cursor: pointer;
+    border: 1px solid; white-space: nowrap;
+    font-family: inherit; transition: filter 0.12s;
+    background: none;
+  }
+  .expiry-edit-btn:hover { filter: brightness(1.2); }
+  .expiry-none   { border-color: rgba(255,255,255,0.12); color: var(--faint); }
+  .expiry-active { border-color: rgba(46,227,122,0.3); color: #6ef0a4; background: rgba(46,227,122,0.06); }
+  .expiry-expired { border-color: rgba(255,80,80,0.35); color: #ff8080; background: rgba(255,60,60,0.08); }
+
+  /* Access row in user card */
+  .user-row-access { display: flex; align-items: center; gap: 6px; }
+  .access-badges { display: flex; gap: 5px; flex-wrap: wrap; }
+  .access-badge {
+    font-size: 10px; font-weight: 800; padding: 3px 8px;
+    border-radius: 5px; cursor: pointer; letter-spacing: 0.4px;
+    border: 1px solid; transition: opacity 0.15s, filter 0.15s;
+    user-select: none;
+  }
+  .access-badge:hover { filter: brightness(1.15); }
+  .access-badge-off {
+    background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1);
+    color: var(--faint); opacity: 0.5;
+  }
+  .access-badge-og     { background: rgba(255,180,60,0.12); border-color: rgba(255,180,60,0.4); color: var(--og); }
+  .access-badge-dragon { background: rgba(255,77,77,0.12);  border-color: rgba(255,77,77,0.4);  color: #ff7777; }
+  .access-badge-small  { background: rgba(56,208,255,0.12); border-color: rgba(56,208,255,0.4); color: var(--small); }
+
+  /* ── Access toggles section in create form ─── */
+  .access-toggles-section {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .access-toggles-label {
+    font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--faint); margin-bottom: 10px;
+  }
+  .access-toggles-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .access-toggle-item {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 8px 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px; cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .access-toggle-item:hover { background: rgba(255,255,255,0.06); }
+  .access-toggle-all {
+    grid-column: 1 / -1;
+    border-style: dashed; border-color: rgba(255,255,255,0.14);
+  }
+  .access-toggle-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .access-toggle-name { font-size: 12px; font-weight: 700; }
+  .access-toggle-desc { font-size: 10.5px; color: var(--faint); font-weight: 500; }
+  .access-og     { color: var(--og); }
+  .access-dragon { color: #ff7777; }
+  .access-small  { color: var(--small); }
+  .access-all    { color: #a5b4fc; }
+
+  /* Toggle switch */
+  .toggle-switch { position: relative; flex-shrink: 0; }
+  .toggle-input  { position: absolute; opacity: 0; width: 0; height: 0; }
+  .toggle-track  {
+    display: block; width: 36px; height: 20px; border-radius: 999px;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+    position: relative; cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .toggle-track::after {
+    content: ""; position: absolute; left: 2px; top: 2px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: rgba(255,255,255,0.4);
+    transition: transform 0.2s, background 0.2s;
+  }
+  .toggle-input:checked + .toggle-track {
+    background: linear-gradient(135deg, #2ee37a, #1fbf6a);
+    border-color: transparent;
+  }
+  .toggle-input:checked + .toggle-track::after {
+    transform: translateX(16px);
+    background: #fff;
+  }
   
-  /* Nested reset password modal */
+  /* ══════════════════════════════════════════════════════════════════════════════
+     ADMIN PANEL – MISSING PIECES
+  ══════════════════════════════════════════════════════════════════════════════ */
+
+  /* Create user form layout */
+  .create-user-form { display: flex; flex-direction: column; gap: 10px; }
+  .create-row-top {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .create-row-bottom {
+    display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
+  }
+  .field-expiry { flex: 1; min-width: 140px; }
+  .field-role   { min-width: 100px; }
+  .create-submit-btn { flex-shrink: 0; margin-bottom: 0; align-self: flex-end; }
+
+  .expiry-trigger-wrap { display: flex; align-items: center; gap: 6px; }
+  .expiry-trigger {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 12px; border-radius: 9px;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border-strong);
+    color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer;
+    font-family: inherit; white-space: nowrap; transition: background 0.12s;
+  }
+  .expiry-trigger:hover { background: rgba(255,255,255,0.08); }
+  .expiry-clear-btn {
+    background: none; border: none; color: var(--faint); font-size: 13px;
+    cursor: pointer; padding: 4px 6px; border-radius: 6px;
+    transition: color 0.12s;
+  }
+  .expiry-clear-btn:hover { color: #ff7c7c; }
+  .expiry-clear-btn[hidden] { display: none; }
+
+  .select-input {
+    width: 100%; padding: 9px 12px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border-strong);
+    border-radius: 9px; color: var(--text);
+    font-size: 13px; font-family: inherit; font-weight: 600;
+    outline: none; cursor: pointer;
+    appearance: none;
+  }
+  .select-input option { background: #12121e; }
+
+  /* Security items in user row */
+  .user-row-security {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    padding: 6px 0 2px;
+    border-top: 1px solid var(--border);
+  }
+  .sec-item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--faint);
+  }
+  .sec-icon { color: var(--faint); flex-shrink: 0; }
+  .sec-label { font-weight: 700; color: var(--muted); }
+  .sec-value { font-weight: 600; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sec-empty { color: var(--faint); font-style: italic; }
+
+  /* Micro reset buttons */
+  .btn-micro {
+    padding: 2px 7px; font-size: 10px; font-weight: 700;
+    background: rgba(255,255,255,0.06); border: 1px solid var(--border-strong);
+    border-radius: 5px; color: var(--muted); cursor: pointer; font-family: inherit;
+    transition: background 0.12s;
+  }
+  .btn-micro:hover { background: rgba(255,255,255,0.12); }
+
+  /* Role toggle button */
+  .btn-role {
+    padding: 6px 11px; font-size: 12px; font-weight: 700;
+    background: rgba(130,100,255,0.1); border: 1px solid rgba(130,100,255,0.3);
+    border-radius: 8px; color: #c4b5fd; cursor: pointer; font-family: inherit;
+    transition: background 0.12s;
+  }
+  .btn-role:hover { background: rgba(130,100,255,0.2); }
+
+  /* Date picker popover */
+  .dp-popover {
+    position: fixed; z-index: 200;
+    background: #111120; border: 1px solid var(--border-strong);
+    border-radius: 14px; padding: 14px; width: 272px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+  }
+  .dp-popover[hidden] { display: none; }
+  .dp-presets { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+  .dp-preset {
+    padding: 4px 9px; font-size: 11.5px; font-weight: 700;
+    background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--muted); cursor: pointer; font-family: inherit;
+    transition: background 0.12s;
+  }
+  .dp-preset:hover { background: rgba(255,255,255,0.12); color: var(--text); }
+  .dp-divider { height: 1px; background: var(--border); margin: 8px 0; }
+  .dp-cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .dp-month-label { font-size: 13px; font-weight: 800; }
+  .dp-nav {
+    background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--muted); font-size: 16px;
+    width: 26px; height: 26px; display: grid; place-items: center;
+    cursor: pointer; font-family: inherit; line-height: 1;
+    transition: background 0.12s;
+  }
+  .dp-nav:hover { background: rgba(255,255,255,0.12); }
+  .dp-weekdays { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; margin-bottom: 4px; }
+  .dp-weekdays span { text-align: center; font-size: 10.5px; font-weight: 700; color: var(--faint); padding: 3px 0; }
+  .dp-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; }
+  .dp-cell {
+    text-align: center; font-size: 11.5px; font-weight: 600;
+    padding: 5px 2px; border-radius: 6px; cursor: pointer; color: var(--text);
+    transition: background 0.1s;
+  }
+  .dp-cell:hover { background: rgba(255,255,255,0.1); }
+  .dp-cell.dp-empty { cursor: default; }
+  .dp-cell.dp-past  { color: var(--faint); }
+  .dp-cell.dp-today { color: var(--og); font-weight: 800; }
+  .dp-cell.dp-selected { background: rgba(255,140,0,0.25); color: var(--og); font-weight: 800; }
+  .dp-days-input { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+  .dp-days-label { font-size: 11.5px; color: var(--faint); font-weight: 600; white-space: nowrap; }
+  .dp-days-field {
+    width: 60px; padding: 5px 8px;
+    background: rgba(255,255,255,0.06); border: 1px solid var(--border-strong);
+    border-radius: 7px; color: var(--text); font-size: 12px; font-family: inherit;
+    outline: none;
+  }
+  .dp-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .dp-actions .btn-ghost, .dp-actions .btn-primary { flex: 1; text-align: center; }
+
+  /* Field-role hidden wrapper */
+  #roleFieldWrap[hidden] { display: none; }
+
+
   .nested-modal {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
@@ -295,6 +547,11 @@
     background: rgba(255, 140, 0, 0.15);
     border-color: rgba(255, 140, 0, 0.4);
     color: var(--og);
+  }
+  .user-role-badge.role-admin {
+    background: rgba(130, 100, 255, 0.15);
+    border-color: rgba(130, 100, 255, 0.4);
+    color: #c4b5fd;
   }
   
   .btn-admin {
