@@ -23,8 +23,8 @@ const { WebSocketServer } = require("ws");
   } catch (_) {}
 })();
 
-const PORT = Number(process.env.PORT) || 3000;
-const INGEST_TOKEN = process.env.INGEST_TOKEN || "";
+const PORT = Number(process.env.PORT) || 8080;
+const INGEST_TOKEN = process.env.INGEST_TOKEN || "TUFFFF31425FW1E2";
 const MAX_LOGS = Number(process.env.MAX_LOGS) || 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
