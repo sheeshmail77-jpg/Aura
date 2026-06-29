@@ -62,6 +62,14 @@ function updateStats(stats) {
   statEls.small.textContent = stats.small ?? 0;
 }
 
+// Route an external image URL through the server-side proxy so browsers
+// don't hit CORS / redirect-chain issues with wiki/CDN image sources
+// (same reason Discord fetches thumbnails server-side for webhook embeds).
+function proxyImg(url) {
+  if (!url) return null;
+  return "/api/img-proxy?url=" + encodeURIComponent(url);
+}
+
 // ---------------- rendering ----------------
 function buildCard(entry) {
   const node = cardTpl.content.firstElementChild.cloneNode(true);
@@ -71,12 +79,12 @@ function buildCard(entry) {
   const animals = Array.isArray(entry.animals) && entry.animals.length ? entry.animals : [{ name: "?", mutation: "Normal" }];
   const primary = animals[0];
 
-  // image
+  // image — proxied through the server just like webhook thumbnail fetching
   const imgWrap = node.querySelector(".card-img");
   const img = imgWrap.querySelector("img");
-  const imgUrl = entry.image || primary.image;
-  if (imgUrl) {
-    img.src = imgUrl;
+  const rawImgUrl = entry.image || primary.image;
+  if (rawImgUrl) {
+    img.src = proxyImg(rawImgUrl);
     img.alt = primary.name;
     img.addEventListener("error", () => imgWrap.classList.add("broken"), { once: true });
   } else {
@@ -90,7 +98,7 @@ function buildCard(entry) {
 
   // animal rows (name only shown when multiple)
   const rows = node.querySelector(".card-animals");
-  animals.forEach((a, i) => {
+  animals.forEach((a) => {
     const row = document.createElement("div");
     row.className = "a-row";
     if (animals.length > 1) {
@@ -120,7 +128,21 @@ function buildCard(entry) {
   // owner
   const owner = entry.owner || "?";
   node.querySelector(".owner-name").textContent = owner;
-  node.querySelector(".owner-ava").textContent = owner.charAt(0).toUpperCase();
+  const avaEl = node.querySelector(".owner-ava");
+  const rawAva = entry.ownerAvatar;
+  if (rawAva) {
+    const avaImg = document.createElement("img");
+    avaImg.src = proxyImg(rawAva);
+    avaImg.alt = owner.charAt(0).toUpperCase();
+    avaImg.style.cssText = "width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;";
+    avaImg.addEventListener("error", () => {
+      avaImg.remove();
+      avaEl.textContent = owner.charAt(0).toUpperCase();
+    }, { once: true });
+    avaEl.appendChild(avaImg);
+  } else {
+    avaEl.textContent = owner.charAt(0).toUpperCase();
+  }
 
   // join button
   const join = node.querySelector(".join-btn");
