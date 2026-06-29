@@ -1,130 +1,257 @@
 <!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Live Brainrot Plaza log feed - OG, Dragon and Small finds in real time." />
-    <title>Brainrot Logger</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="/style.css" />
-  </head>
-  <body>
-    <div class="bg-orbs" aria-hidden="true">
-      <span class="orb orb-1"></span>
-      <span class="orb orb-2"></span>
-      <span class="orb orb-3"></span>
-    </div>
-
-    <!-- .page wrapper is required for the flex layout that makes feeds scroll on desktop -->
-    <div class="page">
-
-      <header class="topbar">
-        <div class="brand">
-          <div class="brand-mark">BR</div>
-          <div class="brand-text">
-            <h1>Brainrot Logger</h1>
-            <p>Live Plaza finds &middot; real-time feed</p>
-          </div>
-        </div>
-
-        <div class="conn" id="conn">
-          <span class="conn-dot" id="connDot"></span>
-          <span id="connText">connecting&hellip;</span>
-        </div>
-      </header>
-
-      <section class="stats" aria-label="Last 24 hours">
-        <div class="stats-label">Last 24 Hours</div>
-        <div class="stat-cards">
-          <div class="stat-card total">
-            <div class="stat-num" id="statTotal">0</div>
-            <div class="stat-name">Total Logs</div>
-          </div>
-          <div class="stat-card og">
-            <div class="stat-num" id="statOg">0</div>
-            <div class="stat-name">OGs</div>
-          </div>
-          <div class="stat-card dragon">
-            <div class="stat-num" id="statDragon">0</div>
-            <div class="stat-name">Dragons</div>
-          </div>
-          <div class="stat-card small">
-            <div class="stat-num" id="statSmall">0</div>
-            <div class="stat-name">Small</div>
-          </div>
-        </div>
-      </section>
-
-      <main class="feeds">
-        <section class="feed feed-og">
-          <header class="feed-head">
-            <span class="feed-pill">OG</span>
-            <h2>Recent OGs</h2>
-            <span class="feed-count" id="countOg">0</span>
-          </header>
-          <div class="feed-list" id="listOg">
-            <div class="empty" id="emptyOg">No OG finds yet&hellip;</div>
-          </div>
-        </section>
-
-        <section class="feed feed-dragon">
-          <header class="feed-head">
-            <span class="feed-pill">DRAGON</span>
-            <h2>Recent Dragons</h2>
-            <span class="feed-count" id="countDragon">0</span>
-          </header>
-          <div class="feed-list" id="listDragon">
-            <div class="empty" id="emptyDragon">No dragon finds yet&hellip;</div>
-          </div>
-        </section>
-
-        <section class="feed feed-small">
-          <header class="feed-head">
-            <span class="feed-pill">SMALL</span>
-            <h2>Recent Small</h2>
-            <span class="feed-count" id="countSmall">0</span>
-          </header>
-          <div class="feed-list" id="listSmall">
-            <div class="empty" id="emptySmall">No small finds yet&hellip;</div>
-          </div>
-        </section>
-      </main>
-
-      <footer class="foot">
-        <span>Brainrot Logger</span>
-        <span class="dot">&middot;</span>
-        <span>logs auto-expire after 24h</span>
-      </footer>
-
-    </div><!-- /.page -->
-
-    <template id="cardTpl">
-      <article class="card">
-        <div class="card-glow"></div>
-        <div class="card-img">
-          <img alt="" loading="lazy" />
-          <span class="card-tier"></span>
-        </div>
-        <div class="card-body">
-          <div class="card-title"></div>
-          <div class="card-animals"></div>
-          <div class="card-meta">
-            <div class="owner">
-              <span class="owner-ava"></span>
-              <span class="owner-name"></span>
+  <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <meta name="description" content="Live Brainrot Plaza log feed - OG, Dragon and Small finds in real time." />
+      <title>Brainrot Logger</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+      <link rel="stylesheet" href="/style.css" />
+    </head>
+    <body>
+  
+      <!-- ═══════════════════════════════════════════════════════════════════════
+           LOGIN OVERLAY  — shown until the user authenticates
+      ════════════════════════════════════════════════════════════════════════ -->
+      <div id="loginOverlay" class="login-overlay" aria-modal="true" role="dialog" aria-label="Login">
+        <div class="login-card">
+          <div class="login-brand">
+            <div class="brand-mark">BR</div>
+            <div>
+              <div class="login-brand-title">Brainrot Logger</div>
+              <div class="login-brand-sub">Sign in to view the live feed</div>
             </div>
-            <a class="join-btn" target="_blank" rel="noopener">Join</a>
+          </div>
+  
+          <form id="loginForm" class="login-form" autocomplete="on" novalidate>
+            <div class="field">
+              <label for="loginUsername">Username</label>
+              <input id="loginUsername" type="text" name="username" autocomplete="username"
+                     placeholder="Enter username" required />
+            </div>
+            <div class="field">
+              <label for="loginPassword">Password</label>
+              <div class="pw-wrap">
+                <input id="loginPassword" type="password" name="password" autocomplete="current-password"
+                       placeholder="Enter password" required />
+                <button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password">
+                  <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+                    <path d="M10 3C5 3 1.73 7.11 1.05 9.76a1 1 0 000 .48C1.73 12.89 5 17 10 17s8.27-4.11 8.95-6.76a1 1 0 000-.48C18.27 7.11 15 3 10 3zm0 11a4 4 0 110-8 4 4 0 010 8z"/>
+                    <circle cx="10" cy="10" r="2"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+  
+            <div id="loginError" class="login-error" hidden></div>
+  
+            <button type="submit" id="loginBtn" class="login-submit">
+              <span id="loginBtnText">Sign In</span>
+              <span id="loginSpinner" class="spinner" hidden></span>
+            </button>
+          </form>
+        </div>
+      </div>
+  
+      <!-- ═══════════════════════════════════════════════════════════════════════
+           ADMIN PANEL MODAL  — owner only
+      ════════════════════════════════════════════════════════════════════════ -->
+      <div id="adminOverlay" class="modal-overlay" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-label="Admin Panel">
+          <div class="modal-header">
+            <h2>Admin Panel</h2>
+            <button class="modal-close" id="adminClose" aria-label="Close">✕</button>
+          </div>
+  
+          <!-- Create user -->
+          <section class="admin-section">
+            <h3>Create Login</h3>
+            <form id="createUserForm" class="create-user-form" novalidate>
+              <div class="field-row">
+                <div class="field">
+                  <label for="newUsername">Username</label>
+                  <input id="newUsername" type="text" placeholder="e.g. viewer1" autocomplete="off" />
+                </div>
+                <div class="field">
+                  <label for="newPassword">Password</label>
+                  <input id="newPassword" type="password" placeholder="min 8 chars" autocomplete="new-password" />
+                </div>
+                <button type="submit" class="btn-primary">Create</button>
+              </div>
+              <div id="createUserError" class="login-error" hidden></div>
+              <div id="createUserSuccess" class="login-success" hidden></div>
+            </form>
+          </section>
+  
+          <!-- User list -->
+          <section class="admin-section">
+            <div class="admin-section-head">
+              <h3>Viewer Logins</h3>
+              <button class="btn-ghost btn-sm" id="refreshUsers">↻ Refresh</button>
+            </div>
+            <div id="userList" class="user-list">
+              <div class="user-list-empty">Loading…</div>
+            </div>
+          </section>
+  
+          <!-- Reset password modal (nested) -->
+          <div id="resetPwOverlay" class="nested-modal" hidden>
+            <div class="nested-modal-card">
+              <h3>Reset Password</h3>
+              <p id="resetPwLabel" class="reset-label"></p>
+              <div class="field">
+                <label for="resetPwInput">New Password</label>
+                <input id="resetPwInput" type="password" placeholder="min 8 chars" autocomplete="new-password" />
+              </div>
+              <div id="resetPwError" class="login-error" hidden></div>
+              <div class="nested-modal-btns">
+                <button class="btn-ghost" id="resetPwCancel">Cancel</button>
+                <button class="btn-primary" id="resetPwConfirm">Save</button>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="card-time"><span class="ago"></span></div>
-      </article>
-    </template>
-
-    <script src="/app.js"></script>
-  </body>
-</html>
+      </div>
+  
+      <!-- ═══════════════════════════════════════════════════════════════════════
+           MAIN APP  — hidden until authenticated
+      ════════════════════════════════════════════════════════════════════════ -->
+      <div id="appContent" class="app-content" hidden>
+  
+        <div class="bg-orbs" aria-hidden="true">
+          <span class="orb orb-1"></span>
+          <span class="orb orb-2"></span>
+          <span class="orb orb-3"></span>
+        </div>
+  
+        <div class="page">
+          <header class="topbar">
+            <div class="brand">
+              <div class="brand-mark">BR</div>
+              <div class="brand-text">
+                <h1>Brainrot Logger</h1>
+                <p>Live Plaza finds &middot; real-time feed</p>
+              </div>
+            </div>
+  
+            <div class="topbar-right">
+              <div class="conn" id="conn">
+                <span class="conn-dot" id="connDot"></span>
+                <span id="connText">connecting&hellip;</span>
+              </div>
+  
+              <div class="user-badge" id="userBadge">
+                <span class="user-avatar" id="userAvatar">?</span>
+                <span class="user-name" id="userNameEl"></span>
+                <span class="user-role-badge" id="userRoleBadge"></span>
+              </div>
+  
+              <!-- Owner-only admin button -->
+              <button class="btn-admin" id="adminBtn" hidden aria-label="Open admin panel">
+                <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
+                  <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+                </svg>
+                Admin
+              </button>
+  
+              <button class="btn-logout" id="logoutBtn" aria-label="Log out">
+                <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+                  <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd"/>
+                </svg>
+                Log out
+              </button>
+            </div>
+          </header>
+  
+          <section class="stats" aria-label="Last 24 hours">
+            <div class="stats-label">Last 24 Hours</div>
+            <div class="stat-cards">
+              <div class="stat-card total">
+                <div class="stat-num" id="statTotal">0</div>
+                <div class="stat-name">Total Logs</div>
+              </div>
+              <div class="stat-card og">
+                <div class="stat-num" id="statOg">0</div>
+                <div class="stat-name">OGs</div>
+              </div>
+              <div class="stat-card dragon">
+                <div class="stat-num" id="statDragon">0</div>
+                <div class="stat-name">Dragons</div>
+              </div>
+              <div class="stat-card small">
+                <div class="stat-num" id="statSmall">0</div>
+                <div class="stat-name">Small</div>
+              </div>
+            </div>
+          </section>
+  
+          <main class="feeds">
+            <section class="feed feed-og">
+              <header class="feed-head">
+                <span class="feed-pill">OG</span>
+                <h2>Recent OGs</h2>
+                <span class="feed-count" id="countOg">0</span>
+              </header>
+              <div class="feed-list" id="listOg">
+                <div class="empty" id="emptyOg">No OG finds yet&hellip;</div>
+              </div>
+            </section>
+  
+            <section class="feed feed-dragon">
+              <header class="feed-head">
+                <span class="feed-pill">DRAGON</span>
+                <h2>Recent Dragons</h2>
+                <span class="feed-count" id="countDragon">0</span>
+              </header>
+              <div class="feed-list" id="listDragon">
+                <div class="empty" id="emptyDragon">No dragon finds yet&hellip;</div>
+              </div>
+            </section>
+  
+            <section class="feed feed-small">
+              <header class="feed-head">
+                <span class="feed-pill">SMALL</span>
+                <h2>Recent Small</h2>
+                <span class="feed-count" id="countSmall">0</span>
+              </header>
+              <div class="feed-list" id="listSmall">
+                <div class="empty" id="emptySmall">No small finds yet&hellip;</div>
+              </div>
+            </section>
+          </main>
+  
+          <footer class="foot">
+            <span>Brainrot Logger</span>
+            <span class="dot">&middot;</span>
+            <span>logs auto-expire after 24h</span>
+          </footer>
+        </div>
+      </div><!-- /#appContent -->
+  
+      <template id="cardTpl">
+        <article class="card">
+          <div class="card-glow"></div>
+          <div class="card-img">
+            <img alt="" loading="lazy" />
+            <span class="card-tier"></span>
+          </div>
+          <div class="card-body">
+            <div class="card-title"></div>
+            <div class="card-animals"></div>
+            <div class="card-meta">
+              <div class="owner">
+                <span class="owner-ava"></span>
+                <span class="owner-name"></span>
+              </div>
+              <a class="join-btn" target="_blank" rel="noopener">Join</a>
+            </div>
+          </div>
+          <div class="card-time"><span class="ago"></span></div>
+        </article>
+      </template>
+  
+      <script src="/app.js"></script>
+    </body>
+  </html>
