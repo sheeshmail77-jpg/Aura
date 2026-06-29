@@ -459,6 +459,150 @@
     res.json({ ok: true });
   });
   
+  // ─── Discord role routes ─────────────────────────────────────────────────────
+
+  // In-memory code store: discordUserId -> { code, expiresAt, siteUserId }
+  const discordCodes = new Map();
+
+  const DISCORD_ROLES = {
+    og:     "1520490482856230912",
+    dragon: "1520304817669406730",
+    small:  "1520304912884563968",
+  };
+
+  function discordApiRequest(method, path, body, cb) {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return cb(new Error("DISCORD_BOT_TOKEN not set"));
+    const bodyStr = body ? JSON.stringify(body) : null;
+    const options = {
+      hostname: "discord.com",
+      path:     "/api/v10" + path,
+      method,
+      headers: {
+        "Authorization": "Bot " + token,
+        "Content-Type":  "application/json",
+        "User-Agent":    "BrainrotLogger/1.0",
+        ...(bodyStr ? { "Content-Length": Buffer.byteLength(bodyStr) } : {}),
+      },
+    };
+    const req = https.request(options, res => {
+      let data = "";
+      res.on("data", c => { data += c; });
+      res.on("end", () => {
+        try { cb(null, res.statusCode, JSON.parse(data)); }
+        catch (_) { cb(null, res.statusCode, {}); }
+      });
+    });
+    req.on("error", cb);
+    if (bodyStr) req.write(bodyStr);
+    req.end();
+  }
+
+  // POST /api/discord/send-code  { discordId }
+  // Opens a DM with the user and sends a 6-digit code
+  app.post("/api/discord/send-code", requireAuth, (req, res) => {
+    const { discordId } = req.body || {};
+    if (!discordId || !/^\d{17,20}$/.test(String(discordId).trim())) {
+      return res.status(400).json({ error: "Invalid Discord User ID. It should be 17–20 digits." });
+    }
+    const id = String(discordId).trim();
+
+    // Step 1: create DM channel
+    discordApiRequest("POST", "/users/@me/channels", { recipient_id: id }, (err, status, data) => {
+      if (err || status < 200 || status >= 300) {
+        return res.status(502).json({ error: "Could not open a DM with that Discord ID. Make sure the ID is correct and your DMs are open." });
+      }
+      const channelId = data.id;
+      if (!channelId) return res.status(502).json({ error: "Discord did not return a DM channel." });
+
+      // Step 2: generate code
+      const code      = String(Math.floor(100000 + Math.random() * 900000));
+      const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+      discordCodes.set(id, { code, expiresAt, siteUserId: req.user.id });
+
+      // Step 3: send DM
+      const msg = `🔐 **Brainrot Logger Role Verification**\n\nYour verification code is: **${code}**\n\nEnter this on the site to claim your Discord roles. This code expires in 10 minutes.`;
+      discordApiRequest("POST", `/channels/${channelId}/messages`, { content: msg }, (err2, status2) => {
+        if (err2 || status2 < 200 || status2 >= 300) {
+          discordCodes.delete(id);
+          return res.status(502).json({ error: "Could not send the DM. Make sure your DMs are open from server members." });
+        }
+        res.json({ ok: true, message: "Code sent! Check your Discord DMs." });
+      });
+    });
+  });
+
+  // POST /api/discord/verify-code  { discordId, code }
+  // Verifies code and assigns roles based on the site user's access flags
+  app.post("/api/discord/verify-code", requireAuth, (req, res) => {
+    const { discordId, code } = req.body || {};
+    if (!discordId || !code) return res.status(400).json({ error: "discordId and code are required" });
+
+    const id    = String(discordId).trim();
+    const entry = discordCodes.get(id);
+
+    if (!entry)                          return res.status(400).json({ error: "No pending code for this Discord ID. Request a new one." });
+    if (Date.now() > entry.expiresAt)  { discordCodes.delete(id); return res.status(400).json({ error: "Code expired. Request a new one." }); }
+    if (entry.siteUserId !== req.user.id) return res.status(403).json({ error: "This code was requested by a different account." });
+    if (entry.code !== String(code).trim()) return res.status(400).json({ error: "Incorrect code. Try again." });
+
+    discordCodes.delete(id);
+
+    const guildId = process.env.DISCORD_GUILD_ID || "1517995483719536801";
+    if (!guildId) return res.status(503).json({ error: "Discord Guild ID not configured on the server." });
+
+    // Determine which roles this user gets
+    const users  = loadUsers();
+    const dbUser = req.user.role === "owner" ? null : users.find(u => u.id === req.user.id);
+    const isPriv = req.user.role === "owner" || req.user.role === "admin";
+
+    const rolesToAdd = [];
+    if (isPriv || (dbUser && dbUser.ogAccess))     rolesToAdd.push({ name: "OG",     id: DISCORD_ROLES.og });
+    if (isPriv || (dbUser && dbUser.dragonAccess)) rolesToAdd.push({ name: "Dragon", id: DISCORD_ROLES.dragon });
+    if (isPriv || (dbUser && dbUser.smallAccess))  rolesToAdd.push({ name: "Small",  id: DISCORD_ROLES.small });
+
+    if (rolesToAdd.length === 0) {
+      return res.status(400).json({ error: "Your account has no access permissions to assign roles for." });
+    }
+
+    // First ensure the member is in the guild
+    discordApiRequest("PUT", `/guilds/${guildId}/members/${id}`, {
+      access_token: undefined,
+    }, () => {
+      // Assign each role (PUT /guilds/{guildId}/members/{userId}/roles/{roleId})
+      let done = 0;
+      const assigned = [];
+      const failed   = [];
+
+      function assignNext(i) {
+        if (i >= rolesToAdd.length) {
+          if (assigned.length === 0) {
+            return res.status(502).json({ error: "Failed to assign any roles. Make sure the bot has Manage Roles permission and is in the server." });
+          }
+          return res.json({
+            ok: true,
+            assigned: assigned.map(r => r.name),
+            failed:   failed.map(r => r.name),
+          });
+        }
+        const role = rolesToAdd[i];
+        discordApiRequest("PUT", `/guilds/${guildId}/members/${id}/roles/${role.id}`, {}, (err, status) => {
+          if (!err && status >= 200 && status < 300) assigned.push(role);
+          else failed.push(role);
+          assignNext(i + 1);
+        });
+      }
+      assignNext(0);
+    });
+  });
+
+  // Clean up expired codes every 15 minutes
+  setInterval(() => {
+    const now = Date.now();
+    for (const [k, v] of discordCodes) if (now > v.expiresAt) discordCodes.delete(k);
+  }, 15 * 60 * 1000);
+
   // ─── static files ────────────────────────────────────────────────────────────
   app.use(express.static(path.join(__dirname, "public")));
   
