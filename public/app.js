@@ -1,6 +1,25 @@
 "use strict";
   
   // ═══════════════════════════════════════════════════════════════════════════════
+  // DEVICE ID (used as HWID — generated once per browser, stored in localStorage)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  function getOrCreateDeviceId() {
+    let id = localStorage.getItem("bl_device_id");
+    if (!id) {
+      id = (typeof crypto !== "undefined" && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            return (c === "x" ? r : (r & 0x3 | 0x8)).toString(16);
+          });
+      localStorage.setItem("bl_device_id", id);
+    }
+    return id;
+  }
+  
+  const DEVICE_ID = getOrCreateDeviceId();
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
   // AUTH STATE
   // ═══════════════════════════════════════════════════════════════════════════════
   let authToken   = localStorage.getItem("bl_token");
@@ -26,7 +45,7 @@
   }
   
   // ═══════════════════════════════════════════════════════════════════════════════
-  // BOOT — check session then show the right screen
+  // BOOT
   // ═══════════════════════════════════════════════════════════════════════════════
   (async function boot() {
     if (!authToken) { showLoginOverlay(); return; }
@@ -45,7 +64,7 @@
   })();
   
   // ═══════════════════════════════════════════════════════════════════════════════
-  // LOGIN OVERLAY
+  // LOGIN
   // ═══════════════════════════════════════════════════════════════════════════════
   const loginOverlay = document.getElementById("loginOverlay");
   const appContent   = document.getElementById("appContent");
@@ -68,25 +87,27 @@
     loginOverlay.setAttribute("hidden", "");
     appContent.removeAttribute("hidden");
   
-    // Populate user badge
     const uname = currentUser.username;
     document.getElementById("userNameEl").textContent  = uname;
     document.getElementById("userAvatar").textContent  = uname.charAt(0).toUpperCase();
-    const roleBadge = document.getElementById("userRoleBadge");
-    roleBadge.textContent = currentUser.role === "owner" ? "owner" : "viewer";
-    roleBadge.classList.toggle("role-owner", currentUser.role === "owner");
   
-    if (currentUser.role === "owner") {
+    const roleBadge = document.getElementById("userRoleBadge");
+    roleBadge.textContent = currentUser.role;
+    roleBadge.className   = "user-role-badge";
+    if (currentUser.role === "owner") roleBadge.classList.add("role-owner");
+    if (currentUser.role === "admin") roleBadge.classList.add("role-admin");
+  
+    // Show admin button for owner and admin roles
+    if (currentUser.role === "owner" || currentUser.role === "admin") {
       document.getElementById("adminBtn").removeAttribute("hidden");
     }
   
     startApp();
   }
   
-  // Show/hide password toggle
   pwToggle.addEventListener("click", () => {
-    const show    = pwInput.type === "password";
-    pwInput.type  = show ? "text" : "password";
+    const show   = pwInput.type === "password";
+    pwInput.type = show ? "text" : "password";
     pwToggle.style.opacity = show ? "1" : "0.5";
   });
   
@@ -106,7 +127,7 @@
       const res  = await fetch("/api/auth/login", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ username, password }),
+        body:    JSON.stringify({ username, password, hwid: DEVICE_ID }),
       });
       const data = await res.json();
   
@@ -129,11 +150,9 @@
     loginError.hidden = false;
   }
   
-  // Logout
   document.getElementById("logoutBtn").addEventListener("click", () => {
     clearToken();
     showLoginOverlay();
-    // Reset UI
     document.getElementById("userNameEl").textContent = "";
     document.getElementById("userAvatar").textContent = "?";
     document.getElementById("adminBtn").setAttribute("hidden", "");
@@ -144,78 +163,296 @@
   });
   
   // ═══════════════════════════════════════════════════════════════════════════════
+  // DATE PICKER  (singleton popover)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const DatePicker = (() => {
+    const el         = document.getElementById("dpPopover");
+    let _cb          = null;
+    let _selDate     = null;
+    let _dispYear    = 0;
+    let _dispMonth   = 0;
+    let _triggerEl   = null;
+  
+    function show(triggerEl, currentIso, callback) {
+      _cb        = callback;
+      _triggerEl = triggerEl;
+      _selDate   = currentIso ? new Date(currentIso) : null;
+      const ref  = _selDate || new Date();
+      _dispYear  = ref.getFullYear();
+      _dispMonth = ref.getMonth();
+      document.getElementById("dpDaysInput").value = "";
+      _render();
+      el.removeAttribute("hidden");
+      _position(triggerEl);
+    }
+  
+    function hide() {
+      el.setAttribute("hidden", "");
+      _cb        = null;
+      _triggerEl = null;
+    }
+  
+    function _position(anchor) {
+      const r = anchor.getBoundingClientRect();
+      let top  = r.bottom + window.scrollY + 6;
+      let left = r.left   + window.scrollX;
+      el.style.visibility = "hidden";
+      el.removeAttribute("hidden");
+      const popW = el.offsetWidth  || 272;
+      const popH = el.offsetHeight || 380;
+      el.setAttribute("hidden", "");
+      el.style.visibility = "";
+      if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+      if (left < 8) left = 8;
+      if (top + popH > window.innerHeight + window.scrollY - 8)
+        top = r.top + window.scrollY - popH - 6;
+      el.style.top  = top  + "px";
+      el.style.left = left + "px";
+    }
+  
+    function _render() {
+      const lbl = new Date(_dispYear, _dispMonth, 1)
+        .toLocaleDateString("en-US", { month: "long", year: "numeric" });
+      document.getElementById("dpMonthLabel").textContent = lbl;
+  
+      const grid    = document.getElementById("dpGrid");
+      grid.innerHTML = "";
+  
+      const first   = new Date(_dispYear, _dispMonth, 1).getDay();
+      const days    = new Date(_dispYear, _dispMonth + 1, 0).getDate();
+      const today   = new Date();
+      const todayD  = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const selStr  = _selDate
+        ? new Date(_selDate.getFullYear(), _selDate.getMonth(), _selDate.getDate()).toDateString()
+        : null;
+  
+      for (let i = 0; i < first; i++) {
+        const c = document.createElement("div");
+        c.className = "dp-cell dp-empty";
+        grid.appendChild(c);
+      }
+      for (let d = 1; d <= days; d++) {
+        const date = new Date(_dispYear, _dispMonth, d);
+        const c    = document.createElement("div");
+        c.className   = "dp-cell";
+        c.textContent = d;
+        if (date < todayD)        c.classList.add("dp-past");
+        if (date.toDateString() === today.toDateString()) c.classList.add("dp-today");
+        if (date.toDateString() === selStr) c.classList.add("dp-selected");
+        c.addEventListener("click", () => {
+          _selDate = new Date(_dispYear, _dispMonth, d, 23, 59, 59);
+          _render();
+        });
+        grid.appendChild(c);
+      }
+    }
+  
+    document.getElementById("dpPrev").addEventListener("click", e => {
+      e.stopPropagation();
+      _dispMonth--;
+      if (_dispMonth < 0) { _dispMonth = 11; _dispYear--; }
+      _render();
+    });
+    document.getElementById("dpNext").addEventListener("click", e => {
+      e.stopPropagation();
+      _dispMonth++;
+      if (_dispMonth > 11) { _dispMonth = 0; _dispYear++; }
+      _render();
+    });
+  
+    document.querySelectorAll(".dp-preset").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const days = parseInt(btn.dataset.days, 10);
+        const d = new Date();
+        d.setDate(d.getDate() + days);
+        d.setHours(23, 59, 59, 0);
+        _selDate   = d;
+        _dispYear  = d.getFullYear();
+        _dispMonth = d.getMonth();
+        _render();
+      });
+    });
+  
+    document.getElementById("dpDaysInput").addEventListener("input", e => {
+      const n = parseInt(e.target.value, 10);
+      if (n > 0 && n <= 3650) {
+        const d = new Date();
+        d.setDate(d.getDate() + n);
+        d.setHours(23, 59, 59, 0);
+        _selDate   = d;
+        _dispYear  = d.getFullYear();
+        _dispMonth = d.getMonth();
+        _render();
+      }
+    });
+  
+    document.getElementById("dpClear").addEventListener("click", e => {
+      e.stopPropagation();
+      if (_cb) _cb(null);
+      hide();
+    });
+  
+    document.getElementById("dpApply").addEventListener("click", e => {
+      e.stopPropagation();
+      if (_cb) _cb(_selDate ? _selDate.toISOString() : null);
+      hide();
+    });
+  
+    document.addEventListener("click", e => {
+      if (!el.hasAttribute("hidden") &&
+          !el.contains(e.target) &&
+          !e.target.closest(".expiry-trigger")) {
+        hide();
+      }
+    });
+  
+    return { show, hide };
+  })();
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // DATE FORMAT HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════════
+  function fmtExpiry(iso) {
+    if (!iso) return "No expiry";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "Invalid";
+    const now = Date.now();
+    if (d.getTime() < now) return "EXPIRED";
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  }
+  
+  function isExpired(iso) {
+    if (!iso) return false;
+    return new Date(iso).getTime() < Date.now();
+  }
+  
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
   // ADMIN PANEL
   // ═══════════════════════════════════════════════════════════════════════════════
-  const adminOverlay    = document.getElementById("adminOverlay");
-  const adminClose      = document.getElementById("adminClose");
-  const createUserForm  = document.getElementById("createUserForm");
-  const createUserError = document.getElementById("createUserError");
-  const createUserOk    = document.getElementById("createUserSuccess");
-  const refreshUsersBtn = document.getElementById("refreshUsers");
-  const userListEl      = document.getElementById("userList");
+  const adminOverlay   = document.getElementById("adminOverlay");
+  const adminClose     = document.getElementById("adminClose");
+  const createUserForm = document.getElementById("createUserForm");
+  const createUserErr  = document.getElementById("createUserError");
+  const createUserOk   = document.getElementById("createUserSuccess");
+  const userListEl     = document.getElementById("userList");
   
   // Reset password nested modal
-  const resetPwOverlay  = document.getElementById("resetPwOverlay");
-  const resetPwLabel    = document.getElementById("resetPwLabel");
-  const resetPwInput    = document.getElementById("resetPwInput");
-  const resetPwError    = document.getElementById("resetPwError");
-  const resetPwConfirm  = document.getElementById("resetPwConfirm");
-  const resetPwCancel   = document.getElementById("resetPwCancel");
-  let   resetPwUserId   = null;
+  const resetPwOverlay = document.getElementById("resetPwOverlay");
+  const resetPwLabel   = document.getElementById("resetPwLabel");
+  const resetPwInput   = document.getElementById("resetPwInput");
+  const resetPwError   = document.getElementById("resetPwError");
+  const resetPwConfirm = document.getElementById("resetPwConfirm");
+  const resetPwCancel  = document.getElementById("resetPwCancel");
+  let   resetPwUserId  = null;
   
+  // ── Create form expiry picker ─────────────────────────────────────────────────
+  const createExpiryBtn   = document.getElementById("createExpiryBtn");
+  const createExpiryClear = document.getElementById("createExpiryClear");
+  const newExpiresAtInput = document.getElementById("newExpiresAt");
+  const createExpiryLabel = document.getElementById("createExpiryLabel");
+  
+  createExpiryBtn.addEventListener("click", e => {
+    e.stopPropagation();
+    DatePicker.show(createExpiryBtn, newExpiresAtInput.value || null, iso => {
+      newExpiresAtInput.value = iso || "";
+      createExpiryLabel.textContent = fmtExpiry(iso);
+      createExpiryClear.hidden = !iso;
+    });
+  });
+  
+  createExpiryClear.addEventListener("click", e => {
+    e.stopPropagation();
+    newExpiresAtInput.value = "";
+    createExpiryLabel.textContent = "No expiry";
+    createExpiryClear.hidden = true;
+    DatePicker.hide();
+  });
+  
+  // ── Hide role selector for non-owners ────────────────────────────────────────
   document.getElementById("adminBtn").addEventListener("click", () => {
+    // Show role field only for owner
+    const roleWrap = document.getElementById("roleFieldWrap");
+    if (currentUser && currentUser.role === "owner") {
+      roleWrap.removeAttribute("hidden");
+    } else {
+      roleWrap.setAttribute("hidden", "");
+    }
     adminOverlay.removeAttribute("hidden");
     fetchUsers();
   });
   
   adminClose.addEventListener("click", () => adminOverlay.setAttribute("hidden", ""));
-  adminOverlay.addEventListener("click", e => { if (e.target === adminOverlay) adminOverlay.setAttribute("hidden", ""); });
+  adminOverlay.addEventListener("click", e => {
+    if (e.target === adminOverlay) adminOverlay.setAttribute("hidden", "");
+  });
   
-  refreshUsersBtn.addEventListener("click", fetchUsers);
+  document.getElementById("refreshUsers").addEventListener("click", fetchUsers);
   
+  // ── Create user ───────────────────────────────────────────────────────────────
   createUserForm.addEventListener("submit", async e => {
     e.preventDefault();
-    createUserError.hidden = true;
-    createUserOk.hidden    = true;
+    createUserErr.hidden = true;
+    createUserOk.hidden  = true;
   
-    const username = document.getElementById("newUsername").value.trim();
-    const password = document.getElementById("newPassword").value;
+    const username  = document.getElementById("newUsername").value.trim();
+    const password  = document.getElementById("newPassword").value;
+    const role      = document.getElementById("newRole").value;
+    const expiresAt = newExpiresAtInput.value || null;
   
     if (!username || !password) {
-      showAdminErr("Username and password are required.");
+      showCreateErr("Username and password are required.");
       return;
     }
   
     try {
       const res  = await apiFetch("/api/admin/users", {
         method: "POST",
-        body:   JSON.stringify({ username, password }),
+        body:   JSON.stringify({ username, password, role, expiresAt }),
       });
       const data = await res.json();
+      if (!res.ok) { showCreateErr(data.error || "Failed to create user."); return; }
   
-      if (!res.ok) { showAdminErr(data.error || "Failed to create user."); return; }
-  
-      createUserOk.textContent = `✓ Login created: ${data.user.username}`;
+      const expStr = data.user.expiresAt ? ` · expires ${fmtExpiry(data.user.expiresAt)}` : "";
+      createUserOk.textContent = `✓ Created: ${data.user.username} (${data.user.role})${expStr}`;
       createUserOk.hidden = false;
+  
       document.getElementById("newUsername").value = "";
       document.getElementById("newPassword").value = "";
+      document.getElementById("newRole").value = "viewer";
+      newExpiresAtInput.value = "";
+      createExpiryLabel.textContent = "No expiry";
+      createExpiryClear.hidden = true;
+  
       fetchUsers();
     } catch (err) {
-      if (err.message !== "unauthorized") showAdminErr("Network error.");
+      if (err.message !== "unauthorized") showCreateErr("Network error.");
     }
   });
   
-  function showAdminErr(msg) {
-    createUserError.textContent = msg;
-    createUserError.hidden = false;
+  function showCreateErr(msg) {
+    createUserErr.textContent = msg;
+    createUserErr.hidden = false;
   }
   
+  // ── Fetch and render user list ────────────────────────────────────────────────
   async function fetchUsers() {
     userListEl.innerHTML = '<div class="user-list-empty">Loading…</div>';
     try {
       const res  = await apiFetch("/api/admin/users");
       const data = await res.json();
-      if (!res.ok) { userListEl.innerHTML = `<div class="user-list-empty">Error: ${data.error}</div>`; return; }
+      if (!res.ok) {
+        userListEl.innerHTML = `<div class="user-list-empty">Error: ${escHtml(data.error)}</div>`;
+        return;
+      }
       renderUsers(data.users);
     } catch (err) {
       if (err.message !== "unauthorized")
@@ -225,49 +462,170 @@
   
   function renderUsers(users) {
     if (!users.length) {
-      userListEl.innerHTML = '<div class="user-list-empty">No viewer accounts yet.</div>';
+      userListEl.innerHTML = '<div class="user-list-empty">No accounts yet.</div>';
       return;
     }
   
     userListEl.innerHTML = "";
+    const isOwner = currentUser && currentUser.role === "owner";
+  
     for (const u of users) {
       const row = document.createElement("div");
       row.className = "user-row";
-      row.dataset.id = u.id;
+      row.dataset.id   = u.id;
+      row.dataset.role = u.role;
   
       const created = u.createdAt
         ? new Date(u.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
         : "—";
   
+      const expired    = isExpired(u.expiresAt);
+      const expiryTxt  = fmtExpiry(u.expiresAt);
+      const expiryClass = !u.expiresAt ? "expiry-none" : expired ? "expiry-expired" : "expiry-active";
+  
+      const ipDisplay   = u.lockedIp   || "—";
+      const hwidDisplay = u.hwidMasked || "—";
+  
+      // Role badge class
+      const roleCls = u.role === "admin" ? "role-badge-admin" : "role-badge-viewer";
+  
+      // Owner-only: role toggle button
+      const roleToggleBtn = isOwner
+        ? `<button class="btn-role btn-sm" data-action="toggle-role" data-id="${u.id}" data-role="${u.role}">
+             ${u.role === "admin" ? "Remove Admin" : "Make Admin"}
+           </button>`
+        : "";
+  
       row.innerHTML = `
-        <div class="user-info">
-          <span class="user-row-avatar">${u.username.charAt(0).toUpperCase()}</span>
-          <div>
-            <div class="user-row-name">${escHtml(u.username)}</div>
-            <div class="user-row-meta">viewer &middot; created ${created}</div>
+        <div class="user-row-header">
+          <div class="user-row-identity">
+            <span class="user-row-avatar">${escHtml(u.username.charAt(0).toUpperCase())}</span>
+            <div class="user-row-ident">
+              <span class="user-row-name">${escHtml(u.username)}</span>
+              <span class="user-row-created">Created ${created}</span>
+            </div>
+          </div>
+          <div class="user-row-badges">
+            <span class="role-badge ${roleCls}">${u.role}</span>
+            <span class="expiry-badge ${expiryClass}">${expired ? "⚠ " : ""}${expiryTxt}</span>
           </div>
         </div>
+  
+        <div class="user-row-security">
+          <div class="sec-item">
+            <svg class="sec-icon" viewBox="0 0 20 20" fill="currentColor" width="12" height="12"><path fill-rule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16A8 8 0 0010 2zm0 2c-.076 0-.232.032-.465.262-.238.234-.497.623-.737 1.182-.389.907-.673 2.142-.766 3.556h3.936c-.093-1.414-.377-2.649-.766-3.556-.24-.56-.5-.948-.737-1.182C10.232 4.032 10.076 4 10 4zm3.971 5c-.089-1.546-.383-2.97-.837-4.118A6.004 6.004 0 0115.917 9h-1.946zm-2.003 2H8.032c.093 1.414.377 2.649.766 3.556.24.56.5.948.737 1.182.233.23.389.262.465.262.076 0 .232-.032.465-.262.238-.234.498-.623.737-1.182.389-.907.673-2.142.766-3.556zm1.166 4.118c.454-1.147.748-2.572.837-4.118h1.946a6.004 6.004 0 01-2.783 4.118zm-6.268 0C6.412 13.97 6.118 12.546 6.03 11H4.083a6.004 6.004 0 002.783 4.118z" clip-rule="evenodd"/></svg>
+            <span class="sec-label">IP</span>
+            <span class="sec-value ${u.lockedIp ? "" : "sec-empty"}">${escHtml(ipDisplay)}</span>
+            ${u.lockedIp ? `<button class="btn-micro" data-action="reset-ip" data-id="${u.id}">Reset</button>` : ""}
+          </div>
+          <div class="sec-item">
+            <svg class="sec-icon" viewBox="0 0 20 20" fill="currentColor" width="12" height="12"><path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" clip-rule="evenodd"/></svg>
+            <span class="sec-label">Device</span>
+            <span class="sec-value ${u.hasHwid ? "" : "sec-empty"}">${escHtml(hwidDisplay)}</span>
+            ${u.hasHwid ? `<button class="btn-micro" data-action="reset-hwid" data-id="${u.id}">Reset</button>` : ""}
+          </div>
+          <div class="sec-item sec-item-expiry">
+            <svg class="sec-icon" viewBox="0 0 20 20" fill="currentColor" width="12" height="12"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
+            <span class="sec-label">Expires</span>
+            <button class="expiry-trigger expiry-edit-btn ${expiryClass}" data-action="edit-expiry" data-id="${u.id}" data-expiry="${escHtml(u.expiresAt || "")}">
+              ${expired ? "⚠ " : ""}${expiryTxt}
+            </button>
+          </div>
+        </div>
+  
         <div class="user-row-actions">
-          <button class="btn-ghost btn-sm" data-action="reset" data-id="${u.id}" data-name="${escHtml(u.username)}">Reset PW</button>
+          ${roleToggleBtn}
+          <button class="btn-ghost btn-sm" data-action="reset-pw" data-id="${u.id}" data-name="${escHtml(u.username)}">Reset PW</button>
           <button class="btn-danger btn-sm" data-action="delete" data-id="${u.id}" data-name="${escHtml(u.username)}">Delete</button>
         </div>
       `;
+  
       userListEl.appendChild(row);
     }
   
+    // ── Bind actions ────────────────────────────────────────────────────────────
     userListEl.querySelectorAll("[data-action='delete']").forEach(btn => {
       btn.addEventListener("click", () => deleteUser(btn.dataset.id, btn.dataset.name));
     });
-    userListEl.querySelectorAll("[data-action='reset']").forEach(btn => {
+    userListEl.querySelectorAll("[data-action='reset-pw']").forEach(btn => {
       btn.addEventListener("click", () => openResetPw(btn.dataset.id, btn.dataset.name));
+    });
+    userListEl.querySelectorAll("[data-action='reset-ip']").forEach(btn => {
+      btn.addEventListener("click", () => resetIp(btn.dataset.id));
+    });
+    userListEl.querySelectorAll("[data-action='reset-hwid']").forEach(btn => {
+      btn.addEventListener("click", () => resetHwid(btn.dataset.id));
+    });
+    userListEl.querySelectorAll("[data-action='toggle-role']").forEach(btn => {
+      btn.addEventListener("click", () => toggleRole(btn.dataset.id, btn.dataset.role));
+    });
+    userListEl.querySelectorAll("[data-action='edit-expiry']").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        DatePicker.show(btn, btn.dataset.expiry || null, async iso => {
+          await setExpiry(btn.dataset.id, iso);
+        });
+      });
     });
   }
   
+  // ── Admin API actions ─────────────────────────────────────────────────────────
   async function deleteUser(id, name) {
-    if (!confirm(`Delete login for "${name}"? This cannot be undone.`)) return;
+    if (!confirm(`Delete login for "${name}"?\nThis cannot be undone.`)) return;
     try {
       const res = await apiFetch(`/api/admin/users/${id}`, { method: "DELETE" });
       if (!res.ok) { const d = await res.json(); alert(d.error || "Failed to delete."); return; }
+      fetchUsers();
+    } catch (err) {
+      if (err.message !== "unauthorized") alert("Network error.");
+    }
+  }
+  
+  async function resetIp(id) {
+    if (!confirm("Reset IP lock for this user?\nThey will be re-locked on next login.")) return;
+    try {
+      const res = await apiFetch(`/api/admin/users/${id}/reset-ip`, { method: "POST" });
+      if (!res.ok) { const d = await res.json(); alert(d.error || "Failed."); return; }
+      fetchUsers();
+    } catch (err) {
+      if (err.message !== "unauthorized") alert("Network error.");
+    }
+  }
+  
+  async function resetHwid(id) {
+    if (!confirm("Reset device lock for this user?\nThey will be re-locked on next login.")) return;
+    try {
+      const res = await apiFetch(`/api/admin/users/${id}/reset-hwid`, { method: "POST" });
+      if (!res.ok) { const d = await res.json(); alert(d.error || "Failed."); return; }
+      fetchUsers();
+    } catch (err) {
+      if (err.message !== "unauthorized") alert("Network error.");
+    }
+  }
+  
+  async function setExpiry(id, iso) {
+    try {
+      const res  = await apiFetch(`/api/admin/users/${id}/expiry`, {
+        method: "PUT",
+        body:   JSON.stringify({ expiresAt: iso }),
+      });
+      if (!res.ok) { const d = await res.json(); alert(d.error || "Failed."); return; }
+      fetchUsers();
+    } catch (err) {
+      if (err.message !== "unauthorized") alert("Network error.");
+    }
+  }
+  
+  async function toggleRole(id, currentRole) {
+    const newRole = currentRole === "admin" ? "viewer" : "admin";
+    const label   = newRole === "admin" ? "promote to Admin" : "demote to Viewer";
+    if (!confirm(`Are you sure you want to ${label}?`)) return;
+    try {
+      const res  = await apiFetch(`/api/admin/users/${id}/role`, {
+        method: "PUT",
+        body:   JSON.stringify({ role: newRole }),
+      });
+      if (!res.ok) { const d = await res.json(); alert(d.error || "Failed."); return; }
       fetchUsers();
     } catch (err) {
       if (err.message !== "unauthorized") alert("Network error.");
@@ -314,14 +672,10 @@
     }
   });
   
-  function escHtml(s) {
-    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  }
-  
   // ═══════════════════════════════════════════════════════════════════════════════
-  // MAIN APP (log feed)  — same as original but with auth headers + WS token
+  // MAIN APP (log feed)
   // ═══════════════════════════════════════════════════════════════════════════════
-  const DAY_MS      = 24 * 60 * 60 * 1000;
+  const DAY_MS       = 24 * 60 * 60 * 1000;
   const MAX_PER_FEED = 80;
   
   const feeds = {
@@ -339,7 +693,6 @@
   const connText = document.getElementById("connText");
   const cardTpl  = document.getElementById("cardTpl");
   
-  /** id -> { entry, el, agoEl } */
   const items = new Map();
   
   let ws             = null;
@@ -536,7 +889,6 @@
     });
   
     ws.addEventListener("close", ev => {
-      // 1008 = policy violation (bad token) — don't reconnect
       if (ev.code === 1008) { clearToken(); showLoginOverlay(); return; }
       setConn("down");
       scheduleReconnect();
@@ -556,7 +908,6 @@
     if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     if (pollTimer)      { clearInterval(pollTimer); pollTimer = null; }
     if (timerTick)      { clearInterval(timerTick); timerTick = null; }
-    // Clear feed
     for (const { el } of items.values()) el.remove();
     items.clear();
     setCounts();
