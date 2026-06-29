@@ -235,6 +235,10 @@
     background: rgba(130, 100, 255, 0.15); border: 1px solid rgba(130, 100, 255, 0.4);
     color: #c4b5fd;
   }
+  .role-badge-moderator {
+    background: rgba(34, 197, 165, 0.15); border: 1px solid rgba(34, 197, 165, 0.4);
+    color: #5eead4;
+  }
   .role-badge-owner {
     background: rgba(255, 140, 0, 0.15); border: 1px solid rgba(255, 140, 0, 0.4);
     color: var(--og);
@@ -410,6 +414,11 @@
     transition: background 0.12s;
   }
   .btn-role:hover { background: rgba(130,100,255,0.2); }
+  .btn-role.btn-role-dim {
+    background: rgba(255,100,100,0.08); border-color: rgba(255,100,100,0.25);
+    color: #fca5a5;
+  }
+  .btn-role.btn-role-dim:hover { background: rgba(255,100,100,0.16); }
 
   /* Date picker popover */
   .dp-popover {
@@ -556,6 +565,11 @@
     background: rgba(130, 100, 255, 0.15);
     border-color: rgba(130, 100, 255, 0.4);
     color: #c4b5fd;
+  }
+  .user-role-badge.role-moderator {
+    background: rgba(34, 197, 165, 0.15);
+    border-color: rgba(34, 197, 165, 0.4);
+    color: #5eead4;
   }
   
   .btn-admin {
