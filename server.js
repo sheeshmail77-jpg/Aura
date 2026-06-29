@@ -525,6 +525,68 @@
   app.get("/api/health", (req, res) => res.json({ ok: true, uptime: process.uptime() }));
   
   // ─── image proxy (public) ─────────────────────────────────────────────────────
+
+  // Cache resolved Fandom page-image URLs so we don't hit their API on every request.
+  const fandomImageCache = new Map(); // pageTitle -> { url, expiresAt }
+  const FANDOM_CACHE_MS = 6 * 60 * 60 * 1000; // 6h
+
+  // Extract the wiki page title from a Special:FilePath-style guess URL, e.g.
+  // https://stealabr.fandom.com/wiki/Special:FilePath/Garama_and_Madundung.png
+  // -> "Garama and Madundung"
+  function fandomTitleFromGuessUrl(targetUrl) {
+    try {
+      const u = new URL(targetUrl);
+      if (!/fandom\.com$/i.test(u.hostname)) return null;
+      const m = u.pathname.match(/\/wiki\/Special:FilePath\/(.+)$/i);
+      if (!m) return null;
+      let file = decodeURIComponent(m[1]);
+      file = file.replace(/\.(png|jpg|jpeg|webp|gif)$/i, "");
+      return file.replace(/_/g, " ");
+    } catch (_) { return null; }
+  }
+
+  // Ask the wiki's MediaWiki API for the actual current main image of a page.
+  // Tries both the short db-name domain and the full vanity domain, since either
+  // may be the canonical one depending on how the wiki is configured.
+  function resolveFandomPageImage(pageTitle, cb) {
+    const cached = fandomImageCache.get(pageTitle);
+    if (cached && cached.expiresAt > Date.now()) return cb(cached.url);
+
+    const hosts = ["stealabrainrot.fandom.com", "stealabr.fandom.com"];
+
+    function tryHost(i) {
+      if (i >= hosts.length) return cb(null);
+      const apiUrl = `https://${hosts[i]}/api.php?action=query&titles=${encodeURIComponent(pageTitle)}&prop=pageimages&piprop=original&format=json`;
+      const request = https.get(apiUrl, {
+        timeout: 6000,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          "Accept": "application/json",
+        },
+      }, upstream => {
+        let body = "";
+        upstream.on("data", chunk => { body += chunk; if (body.length > 1e6) upstream.destroy(); });
+        upstream.on("end", () => {
+          try {
+            const data  = JSON.parse(body);
+            const pages = data && data.query && data.query.pages;
+            const page  = pages && Object.values(pages)[0];
+            const url   = page && page.original && page.original.source;
+            if (url) {
+              fandomImageCache.set(pageTitle, { url, expiresAt: Date.now() + FANDOM_CACHE_MS });
+              return cb(url);
+            }
+          } catch (_) {}
+          tryHost(i + 1);
+        });
+      });
+      request.on("error",   () => tryHost(i + 1));
+      request.on("timeout", () => { request.destroy(); tryHost(i + 1); });
+    }
+
+    tryHost(0);
+  }
+
   app.get("/api/img-proxy", (req, res) => {
     const rawUrl = req.query.url;
     if (!rawUrl || !/^https?:\/\//i.test(rawUrl)) {
@@ -550,14 +612,29 @@
       if (host.endsWith("roblox.com") || host.endsWith("rbxcdn.com")) {
         base.Referer = "https://www.roblox.com/";
       } else if (host.endsWith("fandom.com") || host.endsWith("wikia.nocookie.net")) {
-        base.Referer = "https://stealabr.fandom.com/";
+        base.Referer = "https://stealabrainrot.fandom.com/";
       }
       return base;
     }
 
+    function sendNotFound(extra) {
+      // Last resort: try resolving the real filename via the Fandom API before giving up.
+      const title = fandomTitleFromGuessUrl(rawUrl);
+      if (title && !req._fandomFallbackTried) {
+        req._fandomFallbackTried = true;
+        return resolveFandomPageImage(title, (resolvedUrl) => {
+          if (resolvedUrl && resolvedUrl !== rawUrl) {
+            return fetchUrl(resolvedUrl, 0);
+          }
+          res.status(502).json({ error: "image not found, fandom lookup also failed", ...extra });
+        });
+      }
+      res.status(502).json(extra);
+    }
+
     function fetchUrl(targetUrl, redirectCount) {
       if (redirectCount > 8) {
-        return res.status(502).json({ error: "too many redirects", url: targetUrl });
+        return sendNotFound({ error: "too many redirects", url: targetUrl });
       }
 
       let mod;
@@ -570,13 +647,13 @@
           upstream.resume();
           let next = upstream.headers.location;
           try { next = new URL(next, targetUrl).toString(); }
-          catch (_) { return res.status(502).json({ error: "bad redirect target", location: next }); }
+          catch (_) { return sendNotFound({ error: "bad redirect target", location: next }); }
           return fetchUrl(next, redirectCount + 1);
         }
 
         if (upstream.statusCode < 200 || upstream.statusCode >= 300) {
           upstream.resume();
-          return res.status(502).json({
+          return sendNotFound({
             error:      "upstream returned an error",
             upstream:   upstream.statusCode,
             triedUrl:   targetUrl,
@@ -589,11 +666,11 @@
         const enc = (upstream.headers["content-encoding"] || "").toLowerCase();
         if (enc && enc !== "identity") {
           upstream.resume();
-          return res.status(502).json({ error: "unexpected content-encoding from upstream", encoding: enc });
+          return sendNotFound({ error: "unexpected content-encoding from upstream", encoding: enc });
         }
         if (!/^image\//i.test(contentType)) {
           upstream.resume();
-          return res.status(502).json({ error: "upstream did not return an image", contentType, triedUrl: targetUrl });
+          return sendNotFound({ error: "upstream did not return an image", contentType, triedUrl: targetUrl });
         }
 
         res.setHeader("Content-Type",  contentType);
@@ -602,11 +679,11 @@
       });
 
       request.on("error", (err) => {
-        if (!res.headersSent) res.status(502).json({ error: "fetch failed", message: err.message, triedUrl: targetUrl });
+        if (!res.headersSent) sendNotFound({ error: "fetch failed", message: err.message, triedUrl: targetUrl });
       });
       request.on("timeout", () => {
         request.destroy();
-        if (!res.headersSent) res.status(504).json({ error: "upstream timed out", triedUrl: targetUrl });
+        if (!res.headersSent) sendNotFound({ error: "upstream timed out", triedUrl: targetUrl });
       });
     }
 
