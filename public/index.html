@@ -20,83 +20,88 @@
       <span class="orb orb-3"></span>
     </div>
 
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark">BR</div>
-        <div class="brand-text">
-          <h1>Brainrot Logger</h1>
-          <p>Live Plaza finds &middot; real-time feed</p>
-        </div>
-      </div>
+    <!-- .page wrapper is required for the flex layout that makes feeds scroll on desktop -->
+    <div class="page">
 
-      <div class="conn" id="conn">
-        <span class="conn-dot" id="connDot"></span>
-        <span id="connText">connecting&hellip;</span>
-      </div>
-    </header>
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">BR</div>
+          <div class="brand-text">
+            <h1>Brainrot Logger</h1>
+            <p>Live Plaza finds &middot; real-time feed</p>
+          </div>
+        </div>
 
-    <section class="stats" aria-label="Last 24 hours">
-      <div class="stats-label">Last 24 Hours</div>
-      <div class="stat-cards">
-        <div class="stat-card total">
-          <div class="stat-num" id="statTotal">0</div>
-          <div class="stat-name">Total Logs</div>
+        <div class="conn" id="conn">
+          <span class="conn-dot" id="connDot"></span>
+          <span id="connText">connecting&hellip;</span>
         </div>
-        <div class="stat-card og">
-          <div class="stat-num" id="statOg">0</div>
-          <div class="stat-name">OGs</div>
-        </div>
-        <div class="stat-card dragon">
-          <div class="stat-num" id="statDragon">0</div>
-          <div class="stat-name">Dragons</div>
-        </div>
-        <div class="stat-card small">
-          <div class="stat-num" id="statSmall">0</div>
-          <div class="stat-name">Small</div>
-        </div>
-      </div>
-    </section>
+      </header>
 
-    <main class="feeds">
-      <section class="feed feed-og">
-        <header class="feed-head">
-          <span class="feed-pill">OG</span>
-          <h2>Recent OGs</h2>
-          <span class="feed-count" id="countOg">0</span>
-        </header>
-        <div class="feed-list" id="listOg">
-          <div class="empty" id="emptyOg">No OG finds yet&hellip;</div>
+      <section class="stats" aria-label="Last 24 hours">
+        <div class="stats-label">Last 24 Hours</div>
+        <div class="stat-cards">
+          <div class="stat-card total">
+            <div class="stat-num" id="statTotal">0</div>
+            <div class="stat-name">Total Logs</div>
+          </div>
+          <div class="stat-card og">
+            <div class="stat-num" id="statOg">0</div>
+            <div class="stat-name">OGs</div>
+          </div>
+          <div class="stat-card dragon">
+            <div class="stat-num" id="statDragon">0</div>
+            <div class="stat-name">Dragons</div>
+          </div>
+          <div class="stat-card small">
+            <div class="stat-num" id="statSmall">0</div>
+            <div class="stat-name">Small</div>
+          </div>
         </div>
       </section>
 
-      <section class="feed feed-dragon">
-        <header class="feed-head">
-          <span class="feed-pill">DRAGON</span>
-          <h2>Recent Dragons</h2>
-          <span class="feed-count" id="countDragon">0</span>
-        </header>
-        <div class="feed-list" id="listDragon">
-          <div class="empty" id="emptyDragon">No dragon finds yet&hellip;</div>
-        </div>
-      </section>
+      <main class="feeds">
+        <section class="feed feed-og">
+          <header class="feed-head">
+            <span class="feed-pill">OG</span>
+            <h2>Recent OGs</h2>
+            <span class="feed-count" id="countOg">0</span>
+          </header>
+          <div class="feed-list" id="listOg">
+            <div class="empty" id="emptyOg">No OG finds yet&hellip;</div>
+          </div>
+        </section>
 
-      <section class="feed feed-small">
-        <header class="feed-head">
-          <span class="feed-pill">SMALL</span>
-          <h2>Recent Small</h2>
-          <span class="feed-count" id="countSmall">0</span>
-        </header>
-        <div class="feed-list" id="listSmall">
-          <div class="empty" id="emptySmall">No small finds yet&hellip;</div>
-        </div>
-      </section>
-    </main>
+        <section class="feed feed-dragon">
+          <header class="feed-head">
+            <span class="feed-pill">DRAGON</span>
+            <h2>Recent Dragons</h2>
+            <span class="feed-count" id="countDragon">0</span>
+          </header>
+          <div class="feed-list" id="listDragon">
+            <div class="empty" id="emptyDragon">No dragon finds yet&hellip;</div>
+          </div>
+        </section>
 
-    <footer class="foot">
-      <span>Brainrot Logger</span>
-      <span class="dot">&middot;</span>
-      <span>logs auto-expire after 24h</span>
-    </footer>
+        <section class="feed feed-small">
+          <header class="feed-head">
+            <span class="feed-pill">SMALL</span>
+            <h2>Recent Small</h2>
+            <span class="feed-count" id="countSmall">0</span>
+          </header>
+          <div class="feed-list" id="listSmall">
+            <div class="empty" id="emptySmall">No small finds yet&hellip;</div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="foot">
+        <span>Brainrot Logger</span>
+        <span class="dot">&middot;</span>
+        <span>logs auto-expire after 24h</span>
+      </footer>
+
+    </div><!-- /.page -->
 
     <template id="cardTpl">
       <article class="card">
