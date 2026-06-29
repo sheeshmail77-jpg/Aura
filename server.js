@@ -153,8 +153,16 @@
     next();
   }
   
+  function requirePanelAccess(req, res, next) {
+    const r = req.user && req.user.role;
+    if (r !== "owner" && r !== "admin" && r !== "moderator")
+      return res.status(403).json({ error: "panel access required" });
+    next();
+  }
+
   function requireAdminOrOwner(req, res, next) {
-    if (!req.user || (req.user.role !== "owner" && req.user.role !== "admin"))
+    const r = req.user && req.user.role;
+    if (r !== "owner" && r !== "admin")
       return res.status(403).json({ error: "admin access required" });
     next();
   }
@@ -168,8 +176,9 @@
   // Can the acting user modify the target user?
   function canModify(actorRole, targetRole) {
     if (actorRole === "owner") return true;
-    if (actorRole === "admin" && targetRole === "viewer") return true;
-    return false; // admin cannot touch other admins
+    if (actorRole === "admin" && (targetRole === "viewer" || targetRole === "moderator")) return true;
+    if (actorRole === "moderator" && targetRole === "viewer") return true;
+    return false;
   }
   
   // ─── auth routes ─────────────────────────────────────────────────────────────
@@ -256,31 +265,37 @@
   // ─── admin routes ─────────────────────────────────────────────────────────────
   
   // GET all users
-  app.get("/api/admin/users", requireAuth, requireAdminOrOwner, (req, res) => {
-    const users   = loadUsers();
-    const isOwner = req.user.role === "owner";
-  
+  app.get("/api/admin/users", requireAuth, requirePanelAccess, (req, res) => {
+    const users    = loadUsers();
+    const actorRole = req.user.role;
+    const showIp   = actorRole === "owner" || actorRole === "admin";
+
     const list = users
-      .filter(u => isOwner || u.role !== "admin") // admins cannot see other admins
+      .filter(u => {
+        // owner sees all; admin sees non-admins; mod sees viewers only
+        if (actorRole === "owner") return true;
+        if (actorRole === "admin") return u.role !== "admin";
+        return u.role === "viewer"; // moderator
+      })
       .map(u => ({
         id:           u.id,
         username:     u.username,
         role:         u.role || "viewer",
         createdAt:    u.createdAt,
-        expiresAt:    u.expiresAt  || null,
-        lockedIp:     u.lockedIp   || null,
+        expiresAt:    u.expiresAt   || null,
+        lockedIp:     showIp ? (u.lockedIp || null) : null,
         hwidMasked:   u.lockedHwid ? maskHwid(u.lockedHwid) : null,
         hasHwid:      !!u.lockedHwid,
         ogAccess:     !!u.ogAccess,
         dragonAccess: !!u.dragonAccess,
         smallAccess:  !!u.smallAccess,
       }));
-  
+
     res.json({ users: list });
   });
   
   // PUT set access permissions
-  app.put("/api/admin/users/:id/access", requireAuth, requireAdminOrOwner, (req, res) => {
+  app.put("/api/admin/users/:id/access", requireAuth, requirePanelAccess, (req, res) => {
     const { ogAccess, dragonAccess, smallAccess } = req.body || {};
     const users = loadUsers();
     const user  = users.find(u => u.id === req.params.id);
@@ -297,28 +312,30 @@
   });
 
   // POST create user
-  app.post("/api/admin/users", requireAuth, requireAdminOrOwner, async (req, res) => {
+  app.post("/api/admin/users", requireAuth, requirePanelAccess, async (req, res) => {
     const { username, password, role, expiresAt, ogAccess, dragonAccess, smallAccess } = req.body || {};
-  
+
     if (!username || !password || typeof username !== "string" || typeof password !== "string")
       return res.status(400).json({ error: "username and password are required" });
-  
+
     const uname = username.trim();
-  
+
     if (uname.length < 3 || uname.length > 32)
       return res.status(400).json({ error: "username must be 3–32 characters" });
-  
+
     if (!/^[a-zA-Z0-9_.\-]+$/.test(uname))
       return res.status(400).json({ error: "username may only contain letters, numbers, _ . -" });
-  
+
     if (password.length < 8)
       return res.status(400).json({ error: "password must be at least 8 characters" });
-  
+
     if (uname.toLowerCase() === OWNER_USERNAME.toLowerCase())
       return res.status(409).json({ error: "that username is reserved" });
-  
-    // Only owner can create admin accounts
-    const targetRole = (role === "admin" && req.user.role === "owner") ? "admin" : "viewer";
+
+    // Role hierarchy: owner→admin/mod/viewer, admin→mod/viewer, moderator→viewer only
+    let targetRole = "viewer";
+    if (role === "admin"     && req.user.role === "owner") targetRole = "admin";
+    if (role === "moderator" && (req.user.role === "owner" || req.user.role === "admin")) targetRole = "moderator";
   
     // Validate expiresAt
     let expiry = null;
@@ -362,7 +379,7 @@
   });
   
   // DELETE user
-  app.delete("/api/admin/users/:id", requireAuth, requireAdminOrOwner, (req, res) => {
+  app.delete("/api/admin/users/:id", requireAuth, requirePanelAccess, (req, res) => {
     const users = loadUsers();
     const idx   = users.findIndex(u => u.id === req.params.id);
     if (idx === -1) return res.status(404).json({ error: "user not found" });
@@ -377,7 +394,7 @@
   });
   
   // PUT reset password
-  app.put("/api/admin/users/:id/password", requireAuth, requireAdminOrOwner, async (req, res) => {
+  app.put("/api/admin/users/:id/password", requireAuth, requirePanelAccess, async (req, res) => {
     const { password } = req.body || {};
     if (!password || typeof password !== "string" || password.length < 8)
       return res.status(400).json({ error: "new password must be at least 8 characters" });
@@ -395,7 +412,7 @@
   });
   
   // PUT set/clear expiry
-  app.put("/api/admin/users/:id/expiry", requireAuth, requireAdminOrOwner, (req, res) => {
+  app.put("/api/admin/users/:id/expiry", requireAuth, requirePanelAccess, (req, res) => {
     const { expiresAt } = req.body;
     const users = loadUsers();
     const user  = users.find(u => u.id === req.params.id);
@@ -416,23 +433,31 @@
     res.json({ ok: true, expiresAt: user.expiresAt });
   });
   
-  // PUT change role (owner only)
-  app.put("/api/admin/users/:id/role", requireAuth, requireOwner, (req, res) => {
+  // PUT change role (owner: any role; admin: viewer↔moderator only)
+  app.put("/api/admin/users/:id/role", requireAuth, requireAdminOrOwner, (req, res) => {
     const { role } = req.body || {};
-    if (!["admin", "viewer"].includes(role))
-      return res.status(400).json({ error: "role must be 'admin' or 'viewer'" });
-  
+    if (!["admin", "moderator", "viewer"].includes(role))
+      return res.status(400).json({ error: "role must be 'admin', 'moderator', or 'viewer'" });
+
+    const actorRole = req.user.role;
+    // Only owner can grant/revoke admin
+    if (role === "admin" && actorRole !== "owner")
+      return res.status(403).json({ error: "only the owner can assign the admin role" });
+
     const users = loadUsers();
     const user  = users.find(u => u.id === req.params.id);
     if (!user) return res.status(404).json({ error: "user not found" });
-  
+
+    if (!canModify(actorRole, user.role))
+      return res.status(403).json({ error: "you do not have permission to modify this account" });
+
     user.role = role;
     saveUsers(users);
     res.json({ ok: true, role: user.role });
   });
   
   // POST reset IP lock
-  app.post("/api/admin/users/:id/reset-ip", requireAuth, requireAdminOrOwner, (req, res) => {
+  app.post("/api/admin/users/:id/reset-ip", requireAuth, requirePanelAccess, (req, res) => {
     const users = loadUsers();
     const user  = users.find(u => u.id === req.params.id);
     if (!user) return res.status(404).json({ error: "user not found" });
@@ -446,7 +471,7 @@
   });
   
   // POST reset HWID lock
-  app.post("/api/admin/users/:id/reset-hwid", requireAuth, requireAdminOrOwner, (req, res) => {
+  app.post("/api/admin/users/:id/reset-hwid", requireAuth, requirePanelAccess, (req, res) => {
     const users = loadUsers();
     const user  = users.find(u => u.id === req.params.id);
     if (!user) return res.status(404).json({ error: "user not found" });
