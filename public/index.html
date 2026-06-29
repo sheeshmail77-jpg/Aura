@@ -105,6 +105,53 @@
                 </div>
                 <button type="submit" class="btn-primary create-submit-btn">Create Login</button>
               </div>
+
+              <!-- Access Toggles -->
+              <div class="access-toggles-section">
+                <div class="access-toggles-label">Access Permissions</div>
+                <div class="access-toggles-grid">
+                  <label class="access-toggle-item">
+                    <div class="access-toggle-info">
+                      <span class="access-toggle-name access-og">OG Access</span>
+                      <span class="access-toggle-desc">View OG animal logs</span>
+                    </div>
+                    <div class="toggle-switch">
+                      <input type="checkbox" id="accessOg" class="toggle-input" />
+                      <span class="toggle-track"></span>
+                    </div>
+                  </label>
+                  <label class="access-toggle-item">
+                    <div class="access-toggle-info">
+                      <span class="access-toggle-name access-dragon">Mid Highlight Access</span>
+                      <span class="access-toggle-desc">View Dragon animal logs</span>
+                    </div>
+                    <div class="toggle-switch">
+                      <input type="checkbox" id="accessDragon" class="toggle-input" />
+                      <span class="toggle-track"></span>
+                    </div>
+                  </label>
+                  <label class="access-toggle-item">
+                    <div class="access-toggle-info">
+                      <span class="access-toggle-name access-small">Newbie Highlights</span>
+                      <span class="access-toggle-desc">View Small animal logs</span>
+                    </div>
+                    <div class="toggle-switch">
+                      <input type="checkbox" id="accessSmall" class="toggle-input" />
+                      <span class="toggle-track"></span>
+                    </div>
+                  </label>
+                  <label class="access-toggle-item access-toggle-all">
+                    <div class="access-toggle-info">
+                      <span class="access-toggle-name access-all">All Access</span>
+                      <span class="access-toggle-desc">Enable all categories at once</span>
+                    </div>
+                    <div class="toggle-switch">
+                      <input type="checkbox" id="accessAll" class="toggle-input" />
+                      <span class="toggle-track"></span>
+                    </div>
+                  </label>
+                </div>
+              </div>
               <div id="createUserError"   class="login-error"   hidden></div>
               <div id="createUserSuccess" class="login-success" hidden></div>
             </form>
