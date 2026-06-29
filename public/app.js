@@ -570,4 +570,5 @@
     setConn("connecting");
     loadSnapshot();
     connect();
-setInterval(tickTimers, 1000);
+  timerTick = setInterval(tickTimers, 1000);
+}
