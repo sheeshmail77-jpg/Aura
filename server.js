@@ -263,22 +263,42 @@
     const list = users
       .filter(u => isOwner || u.role !== "admin") // admins cannot see other admins
       .map(u => ({
-        id:         u.id,
-        username:   u.username,
-        role:       u.role || "viewer",
-        createdAt:  u.createdAt,
-        expiresAt:  u.expiresAt  || null,
-        lockedIp:   u.lockedIp   || null,
-        hwidMasked: u.lockedHwid ? maskHwid(u.lockedHwid) : null,
-        hasHwid:    !!u.lockedHwid,
+        id:           u.id,
+        username:     u.username,
+        role:         u.role || "viewer",
+        createdAt:    u.createdAt,
+        expiresAt:    u.expiresAt  || null,
+        lockedIp:     u.lockedIp   || null,
+        hwidMasked:   u.lockedHwid ? maskHwid(u.lockedHwid) : null,
+        hasHwid:      !!u.lockedHwid,
+        ogAccess:     !!u.ogAccess,
+        dragonAccess: !!u.dragonAccess,
+        smallAccess:  !!u.smallAccess,
       }));
   
     res.json({ users: list });
   });
   
+  // PUT set access permissions
+  app.put("/api/admin/users/:id/access", requireAuth, requireAdminOrOwner, (req, res) => {
+    const { ogAccess, dragonAccess, smallAccess } = req.body || {};
+    const users = loadUsers();
+    const user  = users.find(u => u.id === req.params.id);
+    if (!user) return res.status(404).json({ error: "user not found" });
+
+    if (!canModify(req.user.role, user.role))
+      return res.status(403).json({ error: "you do not have permission to modify this account" });
+
+    user.ogAccess     = !!ogAccess;
+    user.dragonAccess = !!dragonAccess;
+    user.smallAccess  = !!smallAccess;
+    saveUsers(users);
+    res.json({ ok: true, ogAccess: user.ogAccess, dragonAccess: user.dragonAccess, smallAccess: user.smallAccess });
+  });
+
   // POST create user
   app.post("/api/admin/users", requireAuth, requireAdminOrOwner, async (req, res) => {
-    const { username, password, role, expiresAt } = req.body || {};
+    const { username, password, role, expiresAt, ogAccess, dragonAccess, smallAccess } = req.body || {};
   
     if (!username || !password || typeof username !== "string" || typeof password !== "string")
       return res.status(400).json({ error: "username and password are required" });
@@ -322,6 +342,9 @@
       expiresAt:    expiry,
       lockedIp:     null,
       lockedHwid:   null,
+      ogAccess:     !!ogAccess,
+      dragonAccess: !!dragonAccess,
+      smallAccess:  !!smallAccess,
     };
     users.push(newUser);
     saveUsers(users);
@@ -460,9 +483,43 @@
     return stats;
   }
   
+  function userCanSeeCategory(user, category) {
+    if (!user) return false;
+    if (user.role === "owner" || user.role === "admin") return true;
+    // Check DB for access flags
+    const users = loadUsers();
+    const dbUser = users.find(u => u.id === user.id);
+    if (!dbUser) return false;
+    if (category === "og")     return !!dbUser.ogAccess;
+    if (category === "dragon") return !!dbUser.dragonAccess;
+    if (category === "small")  return !!dbUser.smallAccess;
+    return false;
+  }
+
+  function filterLogsForUser(logList, user) {
+    if (!user) return [];
+    if (user.role === "owner" || user.role === "admin") return logList;
+    const users = loadUsers();
+    const dbUser = users.find(u => u.id === user.id);
+    if (!dbUser) return [];
+    return logList.filter(l => {
+      if (l.category === "og")     return !!dbUser.ogAccess;
+      if (l.category === "dragon") return !!dbUser.dragonAccess;
+      if (l.category === "small")  return !!dbUser.smallAccess;
+      return false;
+    });
+  }
+
   app.get("/api/logs", requireAuth, (req, res) => {
     prune();
-    res.json({ logs, stats: computeStats() });
+    const filtered = filterLogsForUser(logs, req.user);
+    const stats = { total: filtered.length, og: 0, dragon: 0, small: 0 };
+    for (const l of filtered) {
+      if      (l.category === "og")     stats.og++;
+      else if (l.category === "dragon") stats.dragon++;
+      else                              stats.small++;
+    }
+    res.json({ logs: filtered, stats });
   });
   
   app.get("/api/health", (req, res) => res.json({ ok: true, uptime: process.uptime() }));
@@ -550,7 +607,7 @@
   
     logs.unshift(entry);
     prune();
-    broadcast({ type: "log", entry, stats: computeStats() });
+    broadcastLog(entry);
     res.json({ ok: true, id: entry.id });
   });
   
@@ -558,22 +615,54 @@
   const server = http.createServer(app);
   const wss    = new WebSocketServer({ server, path: "/ws" });
   
-  function broadcast(msg) {
-    const data = JSON.stringify(msg);
+  function computeStatsForLogs(logList) {
+    const stats = { total: logList.length, og: 0, dragon: 0, small: 0 };
+    for (const l of logList) {
+      if      (l.category === "og")     stats.og++;
+      else if (l.category === "dragon") stats.dragon++;
+      else                              stats.small++;
+    }
+    return stats;
+  }
+
+  // Broadcast a new log entry to each connected client filtered by their access
+  function broadcastLog(entry) {
     for (const client of wss.clients) {
-      if (client.readyState === 1) { try { client.send(data); } catch (_) {} }
+      if (client.readyState !== 1) continue;
+      try {
+        const wsUser = client._wsUser;
+        if (!wsUser) continue;
+        const filtered = filterLogsForUser([entry], wsUser);
+        if (!filtered.length) continue;
+        // Recompute stats for this client from their visible full log set
+        const visibleLogs = filterLogsForUser(logs, wsUser);
+        client.send(JSON.stringify({ type: "log", entry, stats: computeStatsForLogs(visibleLogs) }));
+      } catch (_) {}
     }
   }
-  
+
+  function broadcastStats() {
+    for (const client of wss.clients) {
+      if (client.readyState !== 1) continue;
+      try {
+        const wsUser = client._wsUser;
+        if (!wsUser) continue;
+        const visibleLogs = filterLogsForUser(logs, wsUser);
+        client.send(JSON.stringify({ type: "stats", stats: computeStatsForLogs(visibleLogs) }));
+      } catch (_) {}
+    }
+  }
+
   wss.on("connection", (ws, req) => {
+    let wsUser = null;
     try {
       const url   = new URL(req.url, "http://localhost");
       const token = url.searchParams.get("token");
       if (!token) { ws.close(1008, "unauthorized"); return; }
-  
+
       const payload = verifyToken(token);
       if (!payload) { ws.close(1008, "unauthorized"); return; }
-  
+
       // For non-owner, verify still exists
       if (payload.role !== "owner") {
         const users = loadUsers();
@@ -583,12 +672,15 @@
           ws.close(1008, "unauthorized"); return;
         }
       }
+      wsUser = payload;
     } catch (_) {
       ws.close(1008, "unauthorized"); return;
     }
-  
+
+    ws._wsUser = wsUser;
     prune();
-    try { ws.send(JSON.stringify({ type: "init", logs, stats: computeStats() })); } catch (_) {}
+    const filtered = filterLogsForUser(logs, wsUser);
+    try { ws.send(JSON.stringify({ type: "init", logs: filtered, stats: computeStatsForLogs(filtered) })); } catch (_) {}
     ws.isAlive = true;
     ws.on("pong", () => { ws.isAlive = true; });
   });
@@ -605,7 +697,7 @@
   // Periodic stats refresh
   setInterval(() => {
     prune();
-    broadcast({ type: "stats", stats: computeStats() });
+    broadcastStats();
   }, 60 * 1000);
   
   // ─── start ────────────────────────────────────────────────────────────────────
