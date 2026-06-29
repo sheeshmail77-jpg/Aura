@@ -2,6 +2,7 @@
 
 const path = require("path");
 const http = require("http");
+const https = require("https");
 const fs = require("fs");
 const express = require("express");
 const { WebSocketServer } = require("ws");
@@ -77,6 +78,61 @@ app.get("/api/logs", (req, res) => {
 
 app.get("/api/health", (req, res) => res.json({ ok: true, uptime: process.uptime() }));
 
+// ---- image proxy ----
+// Fetches remote images server-side (following redirects) so the browser
+// doesn't hit CORS restrictions on wiki / CDN redirect chains.
+app.get("/api/img-proxy", (req, res) => {
+  const rawUrl = req.query.url;
+  if (!rawUrl || !/^https?:\/\//i.test(rawUrl)) {
+    return res.status(400).end();
+  }
+
+  function fetchUrl(targetUrl, redirectCount) {
+    if (redirectCount > 8) return res.status(502).end();
+    const mod = /^https:/i.test(targetUrl) ? https : http;
+    const request = mod.get(targetUrl, { timeout: 8000 }, (upstream) => {
+      // Follow redirects
+      if (
+        upstream.statusCode >= 300 &&
+        upstream.statusCode < 400 &&
+        upstream.headers.location
+      ) {
+        upstream.resume(); // drain so the socket can be reused
+        let nextUrl = upstream.headers.location;
+        // Resolve relative redirects
+        if (nextUrl.startsWith("/")) {
+          const parsed = new URL(targetUrl);
+          nextUrl = parsed.origin + nextUrl;
+        }
+        return fetchUrl(nextUrl, redirectCount + 1);
+      }
+
+      if (upstream.statusCode < 200 || upstream.statusCode >= 300) {
+        upstream.resume();
+        return res.status(502).end();
+      }
+
+      res.setHeader(
+        "Content-Type",
+        upstream.headers["content-type"] || "image/png"
+      );
+      // Cache for 24 h on the client, 1 h on any CDN in between
+      res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=3600");
+      upstream.pipe(res);
+    });
+
+    request.on("error", () => {
+      if (!res.headersSent) res.status(502).end();
+    });
+    request.on("timeout", () => {
+      request.destroy();
+      if (!res.headersSent) res.status(504).end();
+    });
+  }
+
+  fetchUrl(rawUrl, 0);
+});
+
 app.post("/api/log", (req, res) => {
   if (INGEST_TOKEN) {
     const tok = req.get("x-ingest-token") || req.query.token;
@@ -94,6 +150,8 @@ app.post("/api/log", (req, res) => {
   const entry = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
     owner: clampStr(b.owner, 60, "?") || "?",
+    ownerAvatar: b.ownerAvatar ? clampStr(b.ownerAvatar, 500) : null,
+    ownerId: b.ownerId ? clampStr(b.ownerId, 32) : null,
     category,
     animals,
     image: b.image ? clampStr(b.image, 500) : animals[0].image,
