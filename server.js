@@ -459,6 +459,331 @@
     res.json({ ok: true });
   });
   
+  // ─── single-log public JSON ───────────────────────────────────────────────────
+  app.get("/api/log/:id", (req, res) => {
+    const entry = logs.find(l => l.id === req.params.id);
+    if (!entry) return res.status(404).json({ error: "log not found or expired" });
+    res.json({ ok: true, entry });
+  });
+
+  // ─── single-log public highlight page ────────────────────────────────────────
+  app.get("/log/:id", (req, res) => {
+    const id = req.params.id;
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Brainrot Find</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #07070c;
+      --panel: rgba(20,20,32,0.85);
+      --panel-solid: #13131f;
+      --border: rgba(255,255,255,0.09);
+      --border-strong: rgba(255,255,255,0.17);
+      --text: #f2f3f8;
+      --muted: #9aa0b4;
+      --faint: #6a7088;
+      --og: #ffb43c; --og-2: #ff7a00;
+      --dragon: #ff4d4d; --dragon-2: #c01818;
+      --small: #38d0ff; --small-2: #1f8fff;
+      --radius: 20px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{
+      min-height:100vh;
+      background: radial-gradient(1100px 650px at 60% 0%, #16162a 0%, var(--bg) 60%) fixed var(--bg);
+      color:var(--text);
+      font-family:"Inter",system-ui,sans-serif;
+      -webkit-font-smoothing:antialiased;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      padding:24px 16px;
+    }
+
+    /* orbs */
+    .orbs{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+    .orb{position:absolute;border-radius:50%;filter:blur(90px)}
+    .orb-1{width:420px;height:420px;opacity:.32;top:-100px;left:-60px}
+    .orb-2{width:380px;height:380px;opacity:.18;bottom:-120px;right:-80px}
+
+    .wrap{position:relative;z-index:1;width:100%;max-width:480px;display:flex;flex-direction:column;gap:20px}
+
+    /* brand */
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand-mark{
+      width:42px;height:42px;border-radius:12px;
+      background:linear-gradient(135deg,var(--og-2),var(--dragon-2));
+      display:grid;place-items:center;
+      font-weight:900;font-size:16px;color:#fff;
+      box-shadow:0 6px 20px rgba(255,90,0,.3);
+      flex-shrink:0;
+    }
+    .brand-title{font-size:18px;font-weight:800}
+    .brand-sub{font-size:12px;color:var(--muted);margin-top:2px;font-weight:500}
+
+    /* card */
+    .card{
+      background:var(--panel-solid);
+      border:1px solid var(--border-strong);
+      border-radius:var(--radius);
+      overflow:hidden;
+      box-shadow:0 24px 64px rgba(0,0,0,.55);
+      position:relative;
+    }
+    .card-accent{height:4px;width:100%}
+    .card-og     .card-accent{background:linear-gradient(90deg,var(--og),var(--og-2))}
+    .card-dragon .card-accent{background:linear-gradient(90deg,var(--dragon),var(--dragon-2))}
+    .card-small  .card-accent{background:linear-gradient(90deg,var(--small),var(--small-2))}
+
+    .card-inner{display:flex;gap:18px;padding:20px;align-items:flex-start}
+
+    .card-img{
+      width:100px;height:100px;border-radius:14px;flex-shrink:0;
+      background:#0c0c16;border:1px solid var(--border);
+      overflow:hidden;display:grid;place-items:center;
+    }
+    .card-img img{width:100%;height:100%;object-fit:cover;display:block}
+    .card-img.broken::after{content:"?";font-size:32px;font-weight:800;color:var(--faint)}
+    .card-img.broken img{display:none}
+
+    .card-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+
+    .tier-badge{
+      display:inline-flex;align-items:center;gap:5px;
+      font-size:10px;font-weight:900;letter-spacing:.8px;
+      padding:3px 9px;border-radius:6px;color:#0a0a0f;width:fit-content;
+    }
+    .card-og     .tier-badge{background:linear-gradient(135deg,var(--og),var(--og-2))}
+    .card-dragon .tier-badge{background:linear-gradient(135deg,var(--dragon),var(--dragon-2));color:#fff}
+    .card-small  .tier-badge{background:linear-gradient(135deg,var(--small),var(--small-2));color:#04121c}
+
+    .animal-name{font-size:19px;font-weight:900;letter-spacing:-.3px;line-height:1.15}
+
+    .badges{display:flex;flex-wrap:wrap;gap:5px}
+    .badge{
+      font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;
+      border:1px solid var(--border-strong);color:var(--text);
+    }
+    .badge-mut       {color:#ffe7a8;border-color:rgba(255,180,60,.4);background:rgba(255,180,60,.08)}
+    .badge-mut-normal{color:var(--faint)}
+    .badge-gen       {color:#b8ffd0;border-color:rgba(46,227,122,.35);background:rgba(46,227,122,.08)}
+
+    /* extra animals */
+    .extra-animals{display:flex;flex-direction:column;gap:5px;padding:0 20px 16px}
+    .extra-row{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);font-weight:600}
+    .extra-row .badge{font-size:10.5px}
+
+    /* divider */
+    .divider{height:1px;background:var(--border);margin:0 20px}
+
+    /* owner + actions */
+    .card-footer{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;gap:12px}
+    .owner{display:flex;align-items:center;gap:10px;min-width:0}
+    .owner-ava{
+      width:34px;height:34px;border-radius:50%;flex-shrink:0;
+      background:linear-gradient(135deg,#2a2a40,#3a3a5a);
+      display:grid;place-items:center;font-size:12px;font-weight:800;color:#cfd2e0;overflow:hidden;
+    }
+    .owner-ava img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
+    .owner-name{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .owner-label{font-size:11px;color:var(--faint);font-weight:500;margin-top:1px}
+
+    .join-btn{
+      text-decoration:none;font-size:14px;font-weight:800;
+      padding:11px 22px;border-radius:12px;color:#04121c;white-space:nowrap;flex-shrink:0;
+      background:linear-gradient(135deg,#4be08a,#1fbf6a);
+      box-shadow:0 6px 18px rgba(31,191,106,.32);
+      transition:transform .12s,filter .12s;display:flex;align-items:center;gap:7px;
+    }
+    .join-btn:hover{transform:translateY(-2px);filter:brightness(1.08)}
+    .join-btn.disabled{background:#2a2a3a;color:var(--faint);box-shadow:none;pointer-events:none}
+    .join-btn svg{flex-shrink:0}
+
+    /* time */
+    .card-time{
+      text-align:center;padding:0 20px 14px;
+      font-size:12px;color:var(--faint);font-weight:600;
+    }
+
+    /* states */
+    .state{text-align:center;padding:32px 20px;color:var(--muted);font-size:15px;font-weight:600}
+    .state.error{color:#ff8080}
+
+    /* back link */
+    .back{
+      display:flex;align-items:center;gap:6px;
+      font-size:13px;font-weight:600;color:var(--faint);
+      text-decoration:none;transition:color .12s;
+      align-self:flex-start;
+    }
+    .back:hover{color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="/">
+      <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/></svg>
+      Back to feed
+    </a>
+
+    <div class="brand">
+      <div class="brand-mark">BR</div>
+      <div>
+        <div class="brand-title">Brainrot Logger</div>
+        <div class="brand-sub">Live Plaza Find</div>
+      </div>
+    </div>
+
+    <div id="root"><div class="state">Loading…</div></div>
+  </div>
+
+  <script>
+    const LOG_ID = ${JSON.stringify(id)};
+
+    function proxyImg(url) {
+      if (!url) return null;
+      return "/api/img-proxy?url=" + encodeURIComponent(url);
+    }
+    function timeAgo(ms) {
+      const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+      if (s < 5)  return "just now";
+      if (s < 60) return s + "s ago";
+      const m = Math.floor(s / 60);
+      if (m < 60) return m + "m ago";
+      const h = Math.floor(m / 60);
+      if (h < 24) return h + "h ago";
+      return Math.floor(h / 24) + "d ago";
+    }
+    function isNormal(m) {
+      if (!m) return true;
+      const s = String(m).toLowerCase().replace(/\\s+/g,"");
+      return s === "" || s === "none" || s === "normal" || s === "base";
+    }
+    function tierLabel(cat) {
+      return cat === "og" ? "OG" : cat === "dragon" ? "DRAGON" : "SMALL";
+    }
+
+    function render(entry) {
+      const animals  = Array.isArray(entry.animals) && entry.animals.length ? entry.animals : [{name:"?",mutation:"Normal"}];
+      const primary  = animals[0];
+      const catClass = "card-" + entry.category;
+      const rawImg   = entry.image || primary.image;
+
+      // orb colours
+      const oc = entry.category === "og" ? ["#ff7a00","#ff4d00"] : entry.category === "dragon" ? ["#ff2d2d","#8b0000"] : ["#1f8fff","#004080"];
+      document.querySelector(".orb-1").style.background = oc[0];
+      document.querySelector(".orb-2").style.background = oc[1];
+      document.title = primary.name + " — Brainrot Logger";
+
+      const extraAnimals = animals.slice(1);
+      const extraHtml = extraAnimals.length ? \`
+        <div class="extra-animals">
+          \${extraAnimals.map(a => \`
+            <div class="extra-row">
+              <span>\${esc(a.name)}</span>
+              \${isNormal(a.mutation)
+                ? \`<span class="badge badge-mut-normal">Normal</span>\`
+                : \`<span class="badge badge-mut">\${esc(a.mutation)}</span>\`}
+              \${a.generation ? \`<span class="badge badge-gen">\${esc(a.generation)}</span>\` : ""}
+            </div>
+          \`).join("")}
+        </div>
+        <div class="divider"></div>
+      \` : "";
+
+      const joinHref = entry.joinLink || null;
+      const when     = entry.loggedAt || entry.receivedAt || Date.now();
+
+      document.getElementById("root").innerHTML = \`
+        <div class="card \${catClass}">
+          <div class="card-accent"></div>
+          <div class="card-inner">
+            <div class="card-img" id="imgWrap">
+              \${rawImg ? \`<img id="animalImg" src="\${proxyImg(rawImg)}" alt="\${esc(primary.name)}"/>\` : ""}
+            </div>
+            <div class="card-info">
+              <span class="tier-badge">\${tierLabel(entry.category)}</span>
+              <div class="animal-name">\${esc(animals.length > 1 ? primary.name + " +" + (animals.length-1) : primary.name)}</div>
+              <div class="badges">
+                \${isNormal(primary.mutation)
+                  ? \`<span class="badge badge-mut-normal">Normal</span>\`
+                  : \`<span class="badge badge-mut">\${esc(primary.mutation)}</span>\`}
+                \${primary.generation ? \`<span class="badge badge-gen">\${esc(primary.generation)}</span>\` : ""}
+              </div>
+            </div>
+          </div>
+          \${extraHtml}
+          <div class="divider"></div>
+          <div class="card-footer">
+            <div class="owner">
+              <div class="owner-ava" id="ava">\${esc((entry.owner||"?").charAt(0).toUpperCase())}</div>
+              <div>
+                <div class="owner-name">\${esc(entry.owner || "?")}</div>
+                <div class="owner-label">Owner</div>
+              </div>
+            </div>
+            \${joinHref
+              ? \`<a class="join-btn" href="\${esc(joinHref)}" target="_blank" rel="noopener">
+                   <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
+                   Join Server
+                 </a>\`
+              : \`<span class="join-btn disabled">No Link</span>\`}
+          </div>
+          <div class="card-time" id="agoEl">\${timeAgo(when)}</div>
+        </div>
+      \`;
+
+      // img error → broken
+      if (rawImg) {
+        const img = document.getElementById("animalImg");
+        if (img) img.addEventListener("error", () => document.getElementById("imgWrap").classList.add("broken"), {once:true});
+      } else {
+        document.getElementById("imgWrap").classList.add("broken");
+      }
+
+      // owner avatar
+      if (entry.ownerAvatar) {
+        const avaEl = document.getElementById("ava");
+        const ai = document.createElement("img");
+        ai.src = proxyImg(entry.ownerAvatar);
+        ai.alt = (entry.owner||"?").charAt(0).toUpperCase();
+        ai.addEventListener("error", () => { ai.remove(); }, {once:true});
+        avaEl.appendChild(ai);
+      }
+
+      // live timer
+      const agoEl = document.getElementById("agoEl");
+      setInterval(() => { agoEl.textContent = timeAgo(when); }, 1000);
+    }
+
+    function esc(s) {
+      return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    fetch("/api/log/" + LOG_ID)
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) throw new Error(d.error || "not found");
+        render(d.entry);
+      })
+      .catch(err => {
+        document.getElementById("root").innerHTML =
+          '<div class="state error">⚠ This log has expired or does not exist.</div>';
+      });
+  </script>
+  <div class="orbs" aria-hidden="true">
+    <span class="orb orb-1"></span>
+    <span class="orb orb-2"></span>
+  </div>
+</body>
+</html>`);
+  });
+
   // ─── static files ────────────────────────────────────────────────────────────
   app.use(express.static(path.join(__dirname, "public")));
   
