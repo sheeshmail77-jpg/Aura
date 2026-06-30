@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
   
   // ═══════════════════════════════════════════════════════════════════════════════
   // DEVICE ID (used as HWID — generated once per browser, stored in localStorage)
@@ -1091,6 +1091,42 @@
     const join = node.querySelector(".join-btn");
     if (entry.joinLink) { join.href = entry.joinLink; }
     else                { join.classList.add("disabled"); join.removeAttribute("href"); }
+
+    // ── Copy Script button ───────────────────────────────────────────────────
+    const copyScriptBtn   = node.querySelector(".copy-script-btn");
+    const copyScriptLabel = node.querySelector(".copy-script-label");
+    copyScriptBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Build a targeted config snippet — all animal names in this log entry
+      const animalNames = animals.map(a => `"${a.name.replace(/"/g, '\\"')}"`);
+      const animalList  = animalNames.length === 1
+        ? animalNames[0]
+        : `{\n    ${animalNames.join(",\n    ")}\n  }`;
+
+      const snippet = [
+        `-- 🎯 Targeted ESP config (${owner})`,
+        `local TARGET_PLAYER = "${owner.replace(/"/g, '\\"')}"`,
+        `local TARGET_ANIMALS = ${animalList}`,
+        `-- Paste these lines into the config section of your ESP script`,
+      ].join("\n");
+
+      const flash = (ok) => {
+        copyScriptLabel.textContent = ok ? "Copied!" : "Failed";
+        copyScriptBtn.classList.add(ok ? "copied" : "failed");
+        setTimeout(() => {
+          copyScriptLabel.textContent = "Copy Script";
+          copyScriptBtn.classList.remove("copied", "failed");
+        }, 1400);
+      };
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(snippet).then(() => flash(true)).catch(() => fallbackCopy(snippet, () => flash(true)));
+      } else {
+        fallbackCopy(snippet, () => flash(true));
+      }
+    });
   
     const agoEl = node.querySelector(".ago");
     agoEl.textContent = timeAgo(entry.loggedAt || entry.receivedAt || Date.now());
