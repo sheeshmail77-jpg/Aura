@@ -18,7 +18,13 @@
       <div id="loginOverlay" class="login-overlay" aria-modal="true" role="dialog" aria-label="Login">
         <div class="login-card">
           <div class="login-brand">
-            <div class="brand-mark">BR</div>
+            <img
+              src="/api/img-proxy?url=https%3A%2F%2Fstealabr.fandom.com%2Fwiki%2FSpecial%3AFilePath%2FDragon_Cannelloni.png"
+              alt="Dragon Cannelloni"
+              class="brand-logo"
+              onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+            />
+            <div class="brand-mark" style="display:none">BR</div>
             <div>
               <div class="login-brand-title">Brainrot Logger</div>
               <div class="login-brand-sub" id="loginBrandSub">Sign in to view the live feed</div>
@@ -292,7 +298,13 @@
         <div class="page">
           <header class="topbar">
             <div class="brand">
-              <div class="brand-mark">BR</div>
+              <img
+                src="/api/img-proxy?url=https%3A%2F%2Fstealabr.fandom.com%2Fwiki%2FSpecial%3AFilePath%2FDragon_Cannelloni.png"
+                alt="Dragon Cannelloni"
+                class="brand-logo"
+                onerror="this.style.display='none';document.getElementById('brandMarkFallback').style.display='flex';"
+              />
+              <div class="brand-mark" id="brandMarkFallback" style="display:none">BR</div>
               <div class="brand-text">
                 <h1>Brainrot Logger</h1>
                 <p>Live Plaza finds &middot; real-time feed</p>
