@@ -230,18 +230,26 @@
       return res.status(403).json({ error: "admin access required" });
     next();
   }
-  
+
+  function requireAdminOrModOrOwner(req, res, next) {
+    const r = req.user && req.user.role;
+    if (r !== "owner" && r !== "admin" && r !== "mod")
+      return res.status(403).json({ error: "access required" });
+    next();
+  }
+
   function requireOwner(req, res, next) {
     if (!req.user || req.user.role !== "owner")
       return res.status(403).json({ error: "owner access required" });
     next();
   }
-  
+
   // Can the acting user modify the target user?
   function canModify(actorRole, targetRole) {
     if (actorRole === "owner") return true;
     if (actorRole === "admin" && targetRole === "viewer") return true;
-    return false; // admin cannot touch other admins
+    if (actorRole === "mod"   && targetRole === "viewer") return true;
+    return false;
   }
   
   // ─── auth routes ─────────────────────────────────────────────────────────────
@@ -394,26 +402,32 @@
   // ─── admin routes ─────────────────────────────────────────────────────────────
   
   // GET all users
-  app.get("/api/admin/users", requireAuth, requireAdminOrOwner, (req, res) => {
+  app.get("/api/admin/users", requireAuth, requireAdminOrModOrOwner, (req, res) => {
     const users   = loadUsers();
+    const isMod   = req.user.role === "mod";
     const isOwner = req.user.role === "owner";
-  
+
     const list = users
-      .filter(u => isOwner || u.role !== "admin") // admins cannot see other admins
+      .filter(u => {
+        if (isOwner) return true;
+        if (isMod)   return u.role === "viewer"; // mods only see viewers
+        return u.role !== "admin";               // admins can't see other admins
+      })
       .map(u => ({
         id:           u.id,
         username:     u.username,
         role:         u.role || "viewer",
         createdAt:    u.createdAt,
         expiresAt:    u.expiresAt  || null,
-        lockedIp:     u.lockedIp   || null,
-        hwidMasked:   u.lockedHwid ? maskHwid(u.lockedHwid) : null,
+        lockedIp:     isMod ? null : (u.lockedIp || null), // hidden for mods
+        hasIp:        !!u.lockedIp,
+        hwidMasked:   isMod ? null : (u.lockedHwid ? maskHwid(u.lockedHwid) : null),
         hasHwid:      !!u.lockedHwid,
         ogAccess:     !!u.ogAccess,
         dragonAccess: !!u.dragonAccess,
         smallAccess:  !!u.smallAccess,
       }));
-  
+
     res.json({ users: list });
   });
   
@@ -435,28 +449,29 @@
   });
 
   // POST create user
-  app.post("/api/admin/users", requireAuth, requireAdminOrOwner, async (req, res) => {
+  app.post("/api/admin/users", requireAuth, requireAdminOrModOrOwner, async (req, res) => {
     const { username, password, role, expiresAt, ogAccess, dragonAccess, smallAccess } = req.body || {};
-  
+
     if (!username || !password || typeof username !== "string" || typeof password !== "string")
       return res.status(400).json({ error: "username and password are required" });
-  
+
     const uname = username.trim();
-  
+
     if (uname.length < 3 || uname.length > 32)
       return res.status(400).json({ error: "username must be 3–32 characters" });
-  
+
     if (!/^[a-zA-Z0-9_.\-]+$/.test(uname))
       return res.status(400).json({ error: "username may only contain letters, numbers, _ . -" });
-  
+
     if (password.length < 8)
       return res.status(400).json({ error: "password must be at least 8 characters" });
   
     if (uname.toLowerCase() === OWNER_USERNAME.toLowerCase())
       return res.status(409).json({ error: "that username is reserved" });
   
-    // Only owner can create admin accounts
-    const targetRole = (role === "admin" && req.user.role === "owner") ? "admin" : "viewer";
+    // Only owner can create admin/mod accounts; mods can only create viewers
+    const targetRole = req.user.role === "owner" && role === "admin" ? "admin" :
+                       req.user.role === "owner" && role === "mod"   ? "mod"   : "viewer";
   
     // Validate expiresAt
     let expiry = null;
@@ -557,8 +572,8 @@
   // PUT change role (owner only)
   app.put("/api/admin/users/:id/role", requireAuth, requireOwner, (req, res) => {
     const { role } = req.body || {};
-    if (!["admin", "viewer"].includes(role))
-      return res.status(400).json({ error: "role must be 'admin' or 'viewer'" });
+    if (!["admin", "mod", "viewer"].includes(role))
+      return res.status(400).json({ error: "role must be 'admin', 'mod', or 'viewer'" });
   
     const users = loadUsers();
     const user  = users.find(u => u.id === req.params.id);
@@ -570,25 +585,25 @@
   });
   
   // POST reset IP lock
-  app.post("/api/admin/users/:id/reset-ip", requireAuth, requireAdminOrOwner, (req, res) => {
+  app.post("/api/admin/users/:id/reset-ip", requireAuth, requireAdminOrModOrOwner, (req, res) => {
     const users = loadUsers();
     const user  = users.find(u => u.id === req.params.id);
     if (!user) return res.status(404).json({ error: "user not found" });
-  
+
     if (!canModify(req.user.role, user.role))
       return res.status(403).json({ error: "you do not have permission to modify this account" });
-  
+
     user.lockedIp = null;
     saveUsers(users);
     res.json({ ok: true });
   });
-  
+
   // POST reset HWID lock
-  app.post("/api/admin/users/:id/reset-hwid", requireAuth, requireAdminOrOwner, (req, res) => {
+  app.post("/api/admin/users/:id/reset-hwid", requireAuth, requireAdminOrModOrOwner, (req, res) => {
     const users = loadUsers();
     const user  = users.find(u => u.id === req.params.id);
     if (!user) return res.status(404).json({ error: "user not found" });
-  
+
     if (!canModify(req.user.role, user.role))
       return res.status(403).json({ error: "you do not have permission to modify this account" });
   
