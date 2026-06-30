@@ -1129,7 +1129,7 @@
     });
   
     // ── Info button ──────────────────────────────────────────────────────────
-    node.querySelector(".info-btn").addEventListener("click", e => {
+    node.querySelector(".info-btn-mini").addEventListener("click", e => {
       e.preventDefault();
       e.stopPropagation();
       openInfoModal(entry);
