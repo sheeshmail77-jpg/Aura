@@ -75,6 +75,37 @@
   const loginSpinner = document.getElementById("loginSpinner");
   const pwToggle     = document.getElementById("pwToggle");
   const pwInput      = document.getElementById("loginPassword");
+
+  // ── Login tab switching ───────────────────────────────────────────────────────
+  const tabSignin   = document.getElementById("tabSignin");
+  const tabRedeem   = document.getElementById("tabRedeem");
+  const panelSignin = document.getElementById("panelSignin");
+  const panelRedeem = document.getElementById("panelRedeem");
+
+  function switchTab(tab) {
+    if (tab === "redeem") {
+      tabSignin.classList.remove("login-tab-active");
+      tabRedeem.classList.add("login-tab-active");
+      tabSignin.setAttribute("aria-selected", "false");
+      tabRedeem.setAttribute("aria-selected", "true");
+      panelSignin.setAttribute("hidden", "");
+      panelRedeem.removeAttribute("hidden");
+      document.getElementById("loginBrandSub").textContent = "Redeem your key to get access";
+      document.getElementById("redeemKey").focus();
+    } else {
+      tabRedeem.classList.remove("login-tab-active");
+      tabSignin.classList.add("login-tab-active");
+      tabRedeem.setAttribute("aria-selected", "false");
+      tabSignin.setAttribute("aria-selected", "true");
+      panelRedeem.setAttribute("hidden", "");
+      panelSignin.removeAttribute("hidden");
+      document.getElementById("loginBrandSub").textContent = "Sign in to view the live feed";
+      document.getElementById("loginUsername").focus();
+    }
+  }
+
+  tabSignin.addEventListener("click", () => switchTab("signin"));
+  tabRedeem.addEventListener("click", () => switchTab("redeem"));
   
   function showLoginOverlay() {
     loginOverlay.removeAttribute("hidden");
@@ -160,6 +191,51 @@
     document.getElementById("loginUsername").value = "";
     pwInput.value = "";
     loginError.hidden = true;
+    // Reset to sign-in tab on logout
+    switchTab("signin");
+  });
+
+  // ── Redeem Key form ───────────────────────────────────────────────────────────
+  const redeemForm    = document.getElementById("redeemForm");
+  const redeemError   = document.getElementById("redeemError");
+  const redeemBtn     = document.getElementById("redeemBtn");
+  const redeemBtnText = document.getElementById("redeemBtnText");
+  const redeemSpinner = document.getElementById("redeemSpinner");
+  const redeemKeyInp  = document.getElementById("redeemKey");
+
+  redeemForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    redeemError.hidden = true;
+
+    const key = redeemKeyInp.value.trim();
+    if (!key) { redeemError.textContent = "Enter your redemption key."; redeemError.hidden = false; return; }
+
+    redeemBtn.disabled    = true;
+    redeemBtnText.hidden  = true;
+    redeemSpinner.removeAttribute("hidden");
+
+    try {
+      const res  = await fetch("/api/auth/redeem", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ key }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) { redeemError.textContent = data.error || "Redemption failed."; redeemError.hidden = false; return; }
+
+      saveToken(data.token);
+      currentUser = data.user;
+      redeemKeyInp.value = "";
+      showApp();
+    } catch (_) {
+      redeemError.textContent = "Network error. Please try again.";
+      redeemError.hidden = false;
+    } finally {
+      redeemBtn.disabled    = false;
+      redeemBtnText.hidden  = false;
+      redeemSpinner.setAttribute("hidden", "");
+    }
   });
   
   // ═══════════════════════════════════════════════════════════════════════════════
