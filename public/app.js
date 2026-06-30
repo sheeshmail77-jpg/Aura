@@ -1093,24 +1093,13 @@
     else                { join.classList.add("disabled"); join.removeAttribute("href"); }
 
     // ── Copy Script button ───────────────────────────────────────────────────
+    // Fetches the full executor script from the server, injects TARGET_PLAYER
+    // and TARGET_ANIMALS, then copies the whole thing to the clipboard.
     const copyScriptBtn   = node.querySelector(".copy-script-btn");
     const copyScriptLabel = node.querySelector(".copy-script-label");
-    copyScriptBtn.addEventListener("click", (e) => {
+    copyScriptBtn.addEventListener("click", async (e) => {
       e.preventDefault();
       e.stopPropagation();
-
-      // Build a targeted config snippet — all animal names in this log entry
-      const animalNames = animals.map(a => `"${a.name.replace(/"/g, '\\"')}"`);
-      const animalList  = animalNames.length === 1
-        ? animalNames[0]
-        : `{\n    ${animalNames.join(",\n    ")}\n  }`;
-
-      const snippet = [
-        `-- 🎯 Targeted ESP config (${owner})`,
-        `local TARGET_PLAYER = "${owner.replace(/"/g, '\\"')}"`,
-        `local TARGET_ANIMALS = ${animalList}`,
-        `-- Paste these lines into the config section of your ESP script`,
-      ].join("\n");
 
       const flash = (ok) => {
         copyScriptLabel.textContent = ok ? "Copied!" : "Failed";
@@ -1121,10 +1110,39 @@
         }, 1400);
       };
 
+      let script;
+      try {
+        const res = await apiFetch("/api/script");
+        if (!res.ok) { flash(false); return; }
+        script = await res.text();
+      } catch (_) { flash(false); return; }
+
+      // Escape owner name and build the animal table for Lua
+      const escapedOwner = owner.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      const animalLines  = animals.map(a => {
+        const n = a.name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        const parts = [`  "${n}"`];
+        if (a.mutation && !isNormal(a.mutation)) parts.push(`-- ${a.mutation}`);
+        if (a.generation) parts.push(`-- ${a.generation}`);
+        return parts.join(" ");
+      });
+      const animalTable = animalLines.join(",\n");
+
+      // Inject TARGET_PLAYER
+      script = script.replace(
+        /^local TARGET_PLAYER\s*=\s*"[^"]*"/m,
+        `local TARGET_PLAYER  = "${escapedOwner}"`
+      );
+      // Inject TARGET_ANIMALS (replace the whole {} block)
+      script = script.replace(
+        /^local TARGET_ANIMALS\s*=\s*\{[^}]*\}/m,
+        `local TARGET_ANIMALS = {\n${animalTable}\n}`
+      );
+
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(snippet).then(() => flash(true)).catch(() => fallbackCopy(snippet, () => flash(true)));
+        navigator.clipboard.writeText(script).then(() => flash(true)).catch(() => fallbackCopy(script, () => flash(true)));
       } else {
-        fallbackCopy(snippet, () => flash(true));
+        fallbackCopy(script, () => flash(true));
       }
     });
   
