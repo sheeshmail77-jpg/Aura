@@ -64,6 +64,28 @@
   .login-brand-sub   { font-size: 13px; color: var(--muted); margin-top: 2px; font-weight: 500; }
   
   .login-form { display: flex; flex-direction: column; gap: 18px; }
+
+  /* ── Login tabs ──────────────────────────────────────────────────────────── */
+  .login-tabs {
+    display: flex; gap: 4px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 20px;
+  }
+  .login-tab {
+    flex: 1; padding: 8px 0;
+    background: transparent; border: none; border-radius: 7px;
+    color: var(--muted); font-size: 13px; font-weight: 600;
+    font-family: inherit; cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .login-tab:hover { color: var(--text); }
+  .login-tab.login-tab-active {
+    background: rgba(255,255,255,0.1);
+    color: var(--text);
+  }
   
   .field { display: flex; flex-direction: column; gap: 7px; }
   .field label { font-size: 13px; font-weight: 700; color: var(--muted); }
