@@ -312,8 +312,10 @@
       _dispMonth = ref.getMonth();
       document.getElementById("dpDaysInput").value = "";
       _render();
-      el.removeAttribute("hidden");
+      // Position first (internally shows/hides the element to measure its size),
+      // then reveal it — otherwise _position's measurement cleanup leaves it hidden.
       _position(triggerEl);
+      el.removeAttribute("hidden");
     }
   
     function hide() {
