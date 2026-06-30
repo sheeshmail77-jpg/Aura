@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
   
   // ═══════════════════════════════════════════════════════════════════════════════
   // DEVICE ID (used as HWID — generated once per browser, stored in localStorage)
@@ -127,9 +127,10 @@
     roleBadge.className   = "user-role-badge";
     if (currentUser.role === "owner") roleBadge.classList.add("role-owner");
     if (currentUser.role === "admin") roleBadge.classList.add("role-admin");
-  
-    // Show admin button for owner and admin roles
-    if (currentUser.role === "owner" || currentUser.role === "admin") {
+    if (currentUser.role === "mod")   roleBadge.classList.add("role-mod");
+
+    // Show admin panel button for owner, admin, and mod
+    if (currentUser.role === "owner" || currentUser.role === "admin" || currentUser.role === "mod") {
       document.getElementById("adminBtn").removeAttribute("hidden");
     }
   
@@ -653,9 +654,10 @@
       userListEl.innerHTML = '<div class="user-list-empty">No accounts yet.</div>';
       return;
     }
-  
+
     userListEl.innerHTML = "";
     const isOwner = currentUser && currentUser.role === "owner";
+    const isMod   = currentUser && currentUser.role === "mod";
   
     for (const u of users) {
       const row = document.createElement("div");
@@ -671,25 +673,27 @@
       const expiryTxt   = fmtExpiry(u.expiresAt);
       const expiryClass = !u.expiresAt ? "expiry-none" : expired ? "expiry-expired" : "expiry-active";
   
-      const ipDisplay   = u.lockedIp   || "—";
-      const hwidDisplay = u.hwidMasked || "—";
+      const ipDisplay   = u.lockedIp   ? u.lockedIp   : (u.hasIp  ? "••••" : "—");
+      const hwidDisplay = u.hwidMasked ? u.hwidMasked : (u.hasHwid ? "••••" : "—");
   
       // Role badge
-      const roleCls = u.role === "admin" ? "role-badge-admin" : u.role === "owner" ? "role-badge-owner" : "role-badge-viewer";
+      const roleCls = u.role === "admin"  ? "role-badge-admin"  :
+                      u.role === "mod"    ? "role-badge-mod"    :
+                      u.role === "owner"  ? "role-badge-owner"  : "role-badge-viewer";
 
-      // Owner-only: role toggle button
+      // Owner cycles roles: viewer → admin → mod → viewer
+      const nextRoleLabel = u.role === "admin" ? "→ Mod" : u.role === "mod" ? "→ Viewer" : "→ Admin";
       const roleToggleBtn = isOwner
-        ? `<button class="btn-role btn-sm" data-action="toggle-role" data-id="${u.id}" data-role="${u.role}">
-             ${u.role === "admin" ? "Remove Admin" : "Make Admin"}
-           </button>`
+        ? `<button class="btn-role btn-sm" data-action="toggle-role" data-id="${u.id}" data-role="${u.role}">${nextRoleLabel}</button>`
         : "";
 
-      // Access badges
+      // Access badges — mods see read-only
+      const bOpts = isMod ? ' style="cursor:default;pointer-events:none;opacity:0.6"' : '';
       const accessBadges = `
         <div class="access-badges">
-          <span class="access-badge ${u.ogAccess ? 'access-badge-og' : 'access-badge-off'}" data-access="og" data-id="${u.id}" data-state="${u.ogAccess}" title="OG Access">OG</span>
-          <span class="access-badge ${u.dragonAccess ? 'access-badge-dragon' : 'access-badge-off'}" data-access="dragon" data-id="${u.id}" data-state="${u.dragonAccess}" title="Mid Highlight Access">MID</span>
-          <span class="access-badge ${u.smallAccess ? 'access-badge-small' : 'access-badge-off'}" data-access="small" data-id="${u.id}" data-state="${u.smallAccess}" title="Newbie Highlights">NEW</span>
+          <span class="access-badge ${u.ogAccess ? 'access-badge-og' : 'access-badge-off'}" data-access="og" data-id="${u.id}" data-state="${u.ogAccess}" title="OG Access"${bOpts}>OG</span>
+          <span class="access-badge ${u.dragonAccess ? 'access-badge-dragon' : 'access-badge-off'}" data-access="dragon" data-id="${u.id}" data-state="${u.dragonAccess}" title="Mid Highlight Access"${bOpts}>MID</span>
+          <span class="access-badge ${u.smallAccess ? 'access-badge-small' : 'access-badge-off'}" data-access="small" data-id="${u.id}" data-state="${u.smallAccess}" title="Newbie Highlights"${bOpts}>NEW</span>
         </div>`;
   
       row.innerHTML = `
@@ -718,8 +722,8 @@
           <div class="sec-item">
             <svg class="sec-icon" viewBox="0 0 20 20" fill="currentColor" width="12" height="12"><path fill-rule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16A8 8 0 0010 2zm0 2c-.076 0-.232.032-.465.262-.238.234-.497.623-.737 1.182-.389.907-.673 2.142-.766 3.556h3.936c-.093-1.414-.377-2.649-.766-3.556-.24-.56-.5-.948-.737-1.182C10.232 4.032 10.076 4 10 4zm3.971 5c-.089-1.546-.383-2.97-.837-4.118A6.004 6.004 0 0115.917 9h-1.946zm-2.003 2H8.032c.093 1.414.377 2.649.766 3.556.24.56.5.948.737 1.182.233.23.389.262.465.262.076 0 .232-.032.465-.262.238-.234.498-.623.737-1.182.389-.907.673-2.142.766-3.556zm1.166 4.118c.454-1.147.748-2.572.837-4.118h1.946a6.004 6.004 0 01-2.783 4.118zm-6.268 0C6.412 13.97 6.118 12.546 6.03 11H4.083a6.004 6.004 0 002.783 4.118z" clip-rule="evenodd"/></svg>
             <span class="sec-label">IP</span>
-            <span class="sec-value ${u.lockedIp ? "" : "sec-empty"}">${escHtml(ipDisplay)}</span>
-            ${u.lockedIp ? `<button class="btn-micro" data-action="reset-ip" data-id="${u.id}">Reset</button>` : ""}
+            <span class="sec-value ${(u.lockedIp || u.hasIp) ? "" : "sec-empty"}">${escHtml(ipDisplay)}</span>
+            ${(u.lockedIp || u.hasIp) ? `<button class="btn-micro" data-action="reset-ip" data-id="${u.id}">Reset</button>` : ""}
           </div>
           <div class="sec-item">
             <svg class="sec-icon" viewBox="0 0 20 20" fill="currentColor" width="12" height="12"><path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" clip-rule="evenodd"/></svg>
@@ -731,8 +735,8 @@
   
         <div class="user-row-actions">
           ${roleToggleBtn}
-          <button class="btn-ghost btn-sm" data-action="reset-pw" data-id="${u.id}" data-name="${escHtml(u.username)}">Reset PW</button>
-          <button class="btn-danger btn-sm" data-action="delete" data-id="${u.id}" data-name="${escHtml(u.username)}">Delete</button>
+          ${!isMod ? `<button class="btn-ghost btn-sm" data-action="reset-pw" data-id="${u.id}" data-name="${escHtml(u.username)}">Reset PW</button>` : ""}
+          ${!isMod ? `<button class="btn-danger btn-sm" data-action="delete" data-id="${u.id}" data-name="${escHtml(u.username)}">Delete</button>` : ""}
         </div>
       `;
   
@@ -850,8 +854,9 @@
   }
   
   async function toggleRole(id, currentRole) {
-    const newRole = currentRole === "admin" ? "viewer" : "admin";
-    const label   = newRole === "admin" ? "promote to Admin" : "demote to Viewer";
+    // Cycle: viewer → admin → mod → viewer
+    const newRole = currentRole === "viewer" ? "admin" : currentRole === "admin" ? "mod" : "viewer";
+    const label   = newRole === "admin" ? "promote to Admin" : newRole === "mod" ? "promote to Mod" : "demote to Viewer";
     if (!confirm(`Are you sure you want to ${label}?`)) return;
     try {
       const res  = await apiFetch(`/api/admin/users/${id}/role`, {
