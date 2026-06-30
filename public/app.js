@@ -239,8 +239,62 @@
   });
   
   // ═══════════════════════════════════════════════════════════════════════════════
-  // DATE PICKER  (singleton popover)
+  // SOUND NOTIFICATIONS
   // ═══════════════════════════════════════════════════════════════════════════════
+  let soundEnabled = localStorage.getItem("bl_sound") !== "off";
+
+  const soundToggleBtn   = document.getElementById("soundToggleBtn");
+  const soundIconOn      = document.getElementById("soundIconOn");
+  const soundIconOff     = document.getElementById("soundIconOff");
+  const soundToggleLabel = document.getElementById("soundToggleLabel");
+
+  function applySoundUI() {
+    if (soundEnabled) {
+      soundIconOn.removeAttribute("hidden");
+      soundIconOff.setAttribute("hidden", "");
+      soundToggleBtn.title = "Sound on — click to mute";
+      soundToggleLabel.textContent = "Sound";
+      soundToggleBtn.style.opacity = "1";
+    } else {
+      soundIconOn.setAttribute("hidden", "");
+      soundIconOff.removeAttribute("hidden");
+      soundToggleBtn.title = "Sound off — click to unmute";
+      soundToggleLabel.textContent = "Muted";
+      soundToggleBtn.style.opacity = "0.55";
+    }
+  }
+  applySoundUI();
+
+  soundToggleBtn.addEventListener("click", () => {
+    soundEnabled = !soundEnabled;
+    localStorage.setItem("bl_sound", soundEnabled ? "on" : "off");
+    applySoundUI();
+  });
+
+  // Plays a soft two-tone ding via Web Audio API — no external file needed.
+  let _audioCtx = null;
+  function playLogSound() {
+    if (!soundEnabled) return;
+    try {
+      if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const ctx  = _audioCtx;
+      const gain = ctx.createGain();
+      gain.connect(ctx.destination);
+
+      [[880, 0, 0.15], [1320, 0.12, 0.12]].forEach(([freq, startOffset, dur]) => {
+        const osc = ctx.createOscillator();
+        osc.type            = "sine";
+        osc.frequency.value = freq;
+        osc.connect(gain);
+        const t0 = ctx.currentTime + startOffset;
+        gain.gain.setValueAtTime(0, t0);
+        gain.gain.linearRampToValueAtTime(0.18, t0 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+        osc.start(t0);
+        osc.stop(t0 + dur + 0.01);
+      });
+    } catch (_) {}
+  }
   const DatePicker = (() => {
     const el         = document.getElementById("dpPopover");
     let _cb          = null;
@@ -373,7 +427,15 @@
     document.getElementById("dpApply").addEventListener("click", e => {
       e.stopPropagation();
       const cb = _cb;
-      const iso = _selDate ? _selDate.toISOString() : null;
+      let iso = null;
+      if (_selDate) {
+        // Apply the time from the time input field
+        const timeVal = document.getElementById("dpTimeInput").value || "23:59";
+        const [hh, mm] = timeVal.split(":").map(Number);
+        const d = new Date(_selDate);
+        d.setHours(hh || 23, mm || 59, 59, 0);
+        iso = d.toISOString();
+      }
       hide();
       if (cb) cb(iso);
     });
@@ -1016,10 +1078,10 @@
     if (!entry || !entry.id || items.has(entry.id)) return;
     const when = entry.loggedAt || entry.receivedAt || Date.now();
     if (Date.now() - when > DAY_MS) return;
-  
+
     const feed = feedOf(entry.category);
     const { node, agoEl } = buildCard(entry);
-    if (isNew) node.classList.add("flash");
+    if (isNew) { node.classList.add("flash"); playLogSound(); }
   
     feed.list.insertBefore(node, feed.list.firstChild === feed.empty ? feed.empty.nextSibling : feed.list.firstChild);
     items.set(entry.id, { entry, el: node, agoEl });
