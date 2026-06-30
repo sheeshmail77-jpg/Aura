@@ -46,9 +46,10 @@
   }
   
   // ─── user store ──────────────────────────────────────────────────────────────
-  const DATA_DIR   = path.join(__dirname, "data");
+  const DATA_DIR   = process.env.DATA_DIR || path.join(__dirname, "data");
   const USERS_FILE = path.join(DATA_DIR, "users.json");
   const KEYS_FILE  = path.join(DATA_DIR, "keys.json");
+  const LOGS_FILE  = path.join(DATA_DIR, "logs.json");
   
   function ensureDataDir() {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -114,6 +115,29 @@
       return null;
     }
     return ms > 0 ? ms : null;
+  }
+
+  // ─── log persistence ─────────────────────────────────────────────────────────
+  function loadLogsFromDisk() {
+    try {
+      ensureDataDir();
+      if (!fs.existsSync(LOGS_FILE)) return [];
+      const raw    = JSON.parse(fs.readFileSync(LOGS_FILE, "utf8"));
+      const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+      return raw.filter(l => l.receivedAt >= cutoff);
+    } catch (_) { return []; }
+  }
+
+  let _saveLogsTimer = null;
+  function scheduleSaveLogs() {
+    if (_saveLogsTimer) return;
+    _saveLogsTimer = setTimeout(() => {
+      _saveLogsTimer = null;
+      try {
+        ensureDataDir();
+        fs.writeFileSync(LOGS_FILE, JSON.stringify(logs, null, 2), "utf8");
+      } catch (e) { console.error("[logs] Failed to save logs:", e.message); }
+    }, 3000); // coalesces rapid writes into one disk write
   }
 
   // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -341,6 +365,8 @@
     const username     = "user_" + suffix;
     const passwordHash = await bcrypt.hash(crypto.randomBytes(16).toString("hex"), 12);
 
+    // Determine access flags based on key plan
+    const plan = entry.plan || "all";
     const newUser = {
       id:           Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
       username,
@@ -350,9 +376,9 @@
       expiresAt:    entry.expiresAt || null,
       lockedIp:     null,
       lockedHwid:   null,
-      ogAccess:     true,
-      dragonAccess: true,
-      smallAccess:  true,
+      ogAccess:     plan === "all" || plan === "og",
+      dragonAccess: plan === "all" || plan === "dragon",
+      smallAccess:  plan === "all" || plan === "small",
     };
 
     const users = loadUsers();
@@ -735,7 +761,7 @@
   
   // ─── logs (auth-protected) ────────────────────────────────────────────────────
   /** @type {Array<object>} newest first */
-  let logs = [];
+  let logs = loadLogsFromDisk();
   
   function prune() {
     const cutoff = Date.now() - DAY_MS;
@@ -1010,6 +1036,7 @@
     logs.unshift(entry);
     prune();
     broadcastLog(entry);
+    scheduleSaveLogs();
     res.json({ ok: true, id: entry.id });
   });
   
@@ -1139,38 +1166,49 @@
     }
 
     // Register the /genkey slash command for the configured guild.
+    // Always re-registers on READY so option changes apply on restart.
     function registerCommand(applicationId) {
-      if (commandRegistered) return;
       const guildId = process.env.DISCORD_GUILD_ID;
       if (!guildId) { console.warn("[discord] DISCORD_GUILD_ID not set – cannot register /genkey."); return; }
 
-      const body = JSON.stringify({
+      const cmdDef = {
         name:        "genkey",
         description: "Generate a site redemption key",
         options: [
           {
             name:        "duration",
             description: "How long the key is valid (e.g. 1h, 30m, 2d)",
-            type:        3,  // STRING
+            type:        3,
             required:    true,
+          },
+          {
+            name:        "plan",
+            description: "Which logs the redeemed account can access",
+            type:        3,
+            required:    true,
+            choices: [
+              { name: "All (OG + Dragon + Small)", value: "all"    },
+              { name: "OG only",                   value: "og"     },
+              { name: "Dragon only",               value: "dragon" },
+              { name: "Small only",                value: "small"  },
+            ],
           },
           {
             name:        "uses",
             description: "How many times the key can be redeemed (default 1)",
-            type:        4,  // INTEGER
+            type:        4,
             required:    false,
             min_value:   1,
             max_value:   100,
           },
         ],
-      });
+      };
 
-      discordApiRequest("POST", `/applications/${applicationId}/guilds/${guildId}/commands`, JSON.parse(body), (err, status) => {
+      discordApiRequest("POST", `/applications/${applicationId}/guilds/${guildId}/commands`, cmdDef, (err, status) => {
         if (err || status >= 400) {
           console.error("[discord] Failed to register /genkey command:", err && err.message, status);
         } else {
-          commandRegistered = true;
-          console.log("[discord] /genkey command registered.");
+          console.log("[discord] /genkey command registered/updated.");
         }
       });
     }
@@ -1194,9 +1232,11 @@
 
       const opts        = (d.data && d.data.options) || [];
       const durationOpt = opts.find(o => o.name === "duration");
+      const planOpt     = opts.find(o => o.name === "plan");
       const usesOpt     = opts.find(o => o.name === "uses");
 
       const durationStr = durationOpt ? String(durationOpt.value) : null;
+      const plan        = planOpt     ? String(planOpt.value)      : "all";
       const usesCount   = usesOpt     ? Math.max(1, parseInt(usesOpt.value, 10) || 1) : 1;
 
       const durationMs = parseDuration(durationStr);
@@ -1208,23 +1248,24 @@
       const expiresAt = new Date(Date.now() + durationMs).toISOString();
 
       const keys = loadKeys();
-      keys.push({ key, expiresAt, usesLeft: usesCount, usesTotal: usesCount, createdAt: new Date().toISOString() });
+      keys.push({ key, expiresAt, usesLeft: usesCount, usesTotal: usesCount, plan, createdAt: new Date().toISOString() });
       saveKeys(keys);
 
-      // Format readable expiry
-      const expDate = new Date(expiresAt);
-      const expStr  = expDate.toUTCString();
+      const expDate   = new Date(expiresAt);
+      const expStr    = expDate.toUTCString();
+      const planLabel = plan === "all" ? "All (OG + Dragon + Small)" : plan === "og" ? "OG only" : plan === "dragon" ? "Dragon only" : "Small only";
 
       const msg = [
         `🔑 **Key generated!**`,
         `\`${key}\``,
         `⏱ Expires: ${expStr}`,
         `🔢 Uses: ${usesCount}`,
+        `📋 Plan: ${planLabel}`,
         ``,
-        `Share this key — whoever redeems it on the site gets instant viewer access.`,
+        `Share this key — whoever redeems it on the site gets instant access.`,
       ].join("\n");
 
-      interactionReply(d.id, d.token, msg, true); // ephemeral so only you see it
+      interactionReply(d.id, d.token, msg, true);
     }
 
     function connect(url) {
