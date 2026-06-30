@@ -5,9 +5,8 @@
   // Full esp.lua embedded here — Copy Script button injects TARGET_PLAYER /
   // TARGET_ANIMALS and copies the whole thing. No server request needed.
   // ═══════════════════════════════════════════════════════════════════════════════
-  const ESP_TEMPLATE = `local Players          = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local Workspace        = game:GetService("Workspace")
+  const ESP_TEMPLATE = `local Players   = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- TARGETED CONFIG — injected by the website Copy Script button
@@ -19,7 +18,6 @@ local TARGET_ANIMALS = {}
 -- GENERAL SETTINGS
 -- ═══════════════════════════════════════════════════════════════════════════
 local REFRESH_RATE   = 1
-local TOGGLE_KEY     = Enum.KeyCode.K
 local IGNORE_MY_PLOT = false
 local SHOW_PLOT      = true
 
@@ -205,7 +203,6 @@ espFolder.Parent = guiParent
 local animalHighlights = {}
 local plotHighlights   = {}
 local billboards       = {}
-local enabled          = true
 
 local function getRootPart(model)
     return model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
@@ -306,7 +303,6 @@ local function clearAll()
 end
 
 local function refresh()
-    if not enabled then return end
     local plotsFolder = Workspace:FindFirstChild("Plots")
     if not plotsFolder then return end
 
@@ -356,14 +352,6 @@ local function refresh()
         for plot, h in pairs(plotHighlights) do h:Destroy(); plotHighlights[plot] = nil end
     end
 end
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == TOGGLE_KEY then
-        enabled = not enabled
-        if not enabled then clearAll() end
-    end
-end)
 
 task.spawn(function()
     while espFolder.Parent do
