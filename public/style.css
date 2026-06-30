@@ -253,6 +253,10 @@
     background: rgba(130, 100, 255, 0.15); border: 1px solid rgba(130, 100, 255, 0.4);
     color: #c4b5fd;
   }
+  .role-badge-mod {
+    background: rgba(56, 208, 255, 0.12); border: 1px solid rgba(56, 208, 255, 0.35);
+    color: #7ee8ff;
+  }
   .role-badge-owner {
     background: rgba(255, 140, 0, 0.15); border: 1px solid rgba(255, 140, 0, 0.4);
     color: var(--og);
@@ -645,6 +649,12 @@
   }
   
   .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo {
+    width: 48px; height: 48px; border-radius: 14px;
+    object-fit: contain; flex-shrink: 0;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+  }
   .brand-mark {
     width: 48px; height: 48px; border-radius: 14px;
     display: grid; place-items: center;
