@@ -21,37 +21,64 @@
             <div class="brand-mark">BR</div>
             <div>
               <div class="login-brand-title">Brainrot Logger</div>
-              <div class="login-brand-sub">Sign in to view the live feed</div>
+              <div class="login-brand-sub" id="loginBrandSub">Sign in to view the live feed</div>
             </div>
           </div>
-  
-          <form id="loginForm" class="login-form" autocomplete="on" novalidate>
-            <div class="field">
-              <label for="loginUsername">Username</label>
-              <input id="loginUsername" type="text" name="username" autocomplete="username"
-                     placeholder="Enter username" required />
-            </div>
-            <div class="field">
-              <label for="loginPassword">Password</label>
-              <div class="pw-wrap">
-                <input id="loginPassword" type="password" name="password" autocomplete="current-password"
-                       placeholder="Enter password" required />
-                <button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password">
-                  <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-                    <path d="M10 3C5 3 1.73 7.11 1.05 9.76a1 1 0 000 .48C1.73 12.89 5 17 10 17s8.27-4.11 8.95-6.76a1 1 0 000-.48C18.27 7.11 15 3 10 3zm0 11a4 4 0 110-8 4 4 0 010 8z"/>
-                    <circle cx="10" cy="10" r="2"/>
-                  </svg>
-                </button>
+
+          <!-- Tab switcher -->
+          <div class="login-tabs" role="tablist">
+            <button class="login-tab login-tab-active" id="tabSignin" role="tab" aria-selected="true" aria-controls="panelSignin">Sign In</button>
+            <button class="login-tab" id="tabRedeem" role="tab" aria-selected="false" aria-controls="panelRedeem">Redeem Key</button>
+          </div>
+
+          <!-- Panel: Sign In -->
+          <div id="panelSignin" role="tabpanel">
+            <form id="loginForm" class="login-form" autocomplete="on" novalidate>
+              <div class="field">
+                <label for="loginUsername">Username</label>
+                <input id="loginUsername" type="text" name="username" autocomplete="username"
+                       placeholder="Enter username" required />
               </div>
-            </div>
-  
-            <div id="loginError" class="login-error" hidden></div>
-  
-            <button type="submit" id="loginBtn" class="login-submit">
-              <span id="loginBtnText">Sign In</span>
-              <span id="loginSpinner" class="spinner" hidden></span>
-            </button>
-          </form>
+              <div class="field">
+                <label for="loginPassword">Password</label>
+                <div class="pw-wrap">
+                  <input id="loginPassword" type="password" name="password" autocomplete="current-password"
+                         placeholder="Enter password" required />
+                  <button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password">
+                    <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+                      <path d="M10 3C5 3 1.73 7.11 1.05 9.76a1 1 0 000 .48C1.73 12.89 5 17 10 17s8.27-4.11 8.95-6.76a1 1 0 000-.48C18.27 7.11 15 3 10 3zm0 11a4 4 0 110-8 4 4 0 010 8z"/>
+                      <circle cx="10" cy="10" r="2"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div id="loginError" class="login-error" hidden></div>
+
+              <button type="submit" id="loginBtn" class="login-submit">
+                <span id="loginBtnText">Sign In</span>
+                <span id="loginSpinner" class="spinner" hidden></span>
+              </button>
+            </form>
+          </div>
+
+          <!-- Panel: Redeem Key -->
+          <div id="panelRedeem" role="tabpanel" hidden>
+            <form id="redeemForm" class="login-form" autocomplete="off" novalidate>
+              <div class="field">
+                <label for="redeemKey">Redemption Key</label>
+                <input id="redeemKey" type="text" placeholder="AURA-XXXX-XXXX-XXXX"
+                       autocomplete="off" spellcheck="false" style="letter-spacing:0.05em;" />
+              </div>
+
+              <div id="redeemError" class="login-error" hidden></div>
+
+              <button type="submit" id="redeemBtn" class="login-submit">
+                <span id="redeemBtnText">Redeem &amp; Sign In</span>
+                <span id="redeemSpinner" class="spinner" hidden></span>
+              </button>
+            </form>
+          </div>
         </div>
       </div>
   
