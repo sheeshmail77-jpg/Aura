@@ -271,27 +271,44 @@
     applySoundUI();
   });
 
-  // Plays a soft two-tone ding via Web Audio API — no external file needed.
+  // Soft bell chime — two notes a perfect 5th apart, each with a bell-like
+  // inharmonic partial. Sounds like a gentle marimba notification.
   let _audioCtx = null;
   function playLogSound() {
     if (!soundEnabled) return;
     try {
       if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const ctx  = _audioCtx;
-      const gain = ctx.createGain();
-      gain.connect(ctx.destination);
+      const ctx = _audioCtx;
 
-      [[880, 0, 0.15], [1320, 0.12, 0.12]].forEach(([freq, startOffset, dur]) => {
-        const osc = ctx.createOscillator();
-        osc.type            = "sine";
-        osc.frequency.value = freq;
-        osc.connect(gain);
-        const t0 = ctx.currentTime + startOffset;
-        gain.gain.setValueAtTime(0, t0);
-        gain.gain.linearRampToValueAtTime(0.18, t0 + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-        osc.start(t0);
-        osc.stop(t0 + dur + 0.01);
+      // Transparent limiter — prevents clipping if multiple logs arrive quickly
+      const limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.value = -6;
+      limiter.ratio.value     = 20;
+      limiter.attack.value    = 0.001;
+      limiter.release.value   = 0.1;
+      limiter.connect(ctx.destination);
+
+      // E5 (659 Hz) then B5 (988 Hz) — a perfect 5th, very consonant
+      [{ freq: 659.25, t: 0.00 }, { freq: 987.77, t: 0.11 }].forEach(({ freq, t }) => {
+        const now = ctx.currentTime + t;
+
+        // Helper: one sine partial with fast attack and natural exponential decay
+        function partial(f, vol, decayTc, stopAt) {
+          const osc  = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.value = f;
+          osc.connect(gain);
+          gain.connect(limiter);
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(vol, now + 0.006); // 6 ms attack
+          gain.gain.setTargetAtTime(0.0001, now + 0.006, decayTc); // smooth tail
+          osc.start(now);
+          osc.stop(now + stopAt);
+        }
+
+        partial(freq,        0.28, 0.14, 0.8); // fundamental — medium bell decay
+        partial(freq * 2.76, 0.07, 0.03, 0.2); // inharmonic overtone — fast decay (gives the "ding" click)
       });
     } catch (_) {}
   }
