@@ -1128,12 +1128,131 @@
       }
     });
   
+    // ── Info button ──────────────────────────────────────────────────────────
+    node.querySelector(".info-btn").addEventListener("click", e => {
+      e.preventDefault();
+      e.stopPropagation();
+      openInfoModal(entry);
+    });
+
     const agoEl = node.querySelector(".ago");
     agoEl.textContent = timeAgo(entry.loggedAt || entry.receivedAt || Date.now());
   
     return { node, agoEl };
   }
-  
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // INFO MODAL — animal trait breakdown
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const INFO_OVERLAY = document.getElementById("infoOverlay");
+  const INFO_TITLE   = document.getElementById("infoModalTitle");
+  const INFO_BODY    = document.getElementById("infoModalBody");
+  document.getElementById("infoClose").addEventListener("click", () => INFO_OVERLAY.setAttribute("hidden", ""));
+  INFO_OVERLAY.addEventListener("click", e => { if (e.target === INFO_OVERLAY) INFO_OVERLAY.setAttribute("hidden", ""); });
+
+  // Mutation multipliers (community-known values for Steal a Brainrot)
+  const MUTATION_MULTI = {
+    "normal":     { mult: 1,    label: "Normal",     color: "#9aa0b4" },
+    "shiny":      { mult: 3,    label: "Shiny",      color: "#ffe033" },
+    "golden":     { mult: 5,    label: "Golden",     color: "#ffc800" },
+    "gold":       { mult: 5,    label: "Gold",       color: "#ffc800" },
+    "frozen":     { mult: 4,    label: "Frozen",     color: "#64c8ff" },
+    "crystal":    { mult: 6,    label: "Crystal",    color: "#64dcff" },
+    "dark":       { mult: 4,    label: "Dark",       color: "#b450ff" },
+    "corrupted":  { mult: 6,    label: "Corrupted",  color: "#a000ff" },
+    "rainbow":    { mult: 10,   label: "Rainbow",    color: "#ff50ff" },
+    "prismatic":  { mult: 15,   label: "Prismatic",  color: "#ff50ff" },
+  };
+
+  function getMutationInfo(raw) {
+    if (!raw) return MUTATION_MULTI["normal"];
+    const key = String(raw).trim().toLowerCase();
+    return MUTATION_MULTI[key] || { mult: "?", label: raw, color: "#ffffff" };
+  }
+
+  // Parse generation string — e.g. "Gen 3", "3", "Generation 2" → number
+  function parseGen(raw) {
+    if (!raw) return null;
+    const m = String(raw).match(/(\d+)/);
+    return m ? parseInt(m[1], 10) : null;
+  }
+
+  function openInfoModal(entry) {
+    const animals = Array.isArray(entry.animals) && entry.animals.length
+      ? entry.animals
+      : [{ name: "?", mutation: "Normal", generation: null, tier: 1 }];
+
+    const catLabel = entry.category === "og" ? "OG" : entry.category === "dragon" ? "Dragon" : "Small";
+    const when = entry.loggedAt || entry.receivedAt || Date.now();
+    const timeStr = new Date(when).toLocaleString(undefined, {
+      month: "short", day: "numeric", year: "numeric",
+      hour: "numeric", minute: "2-digit",
+    });
+
+    INFO_TITLE.textContent = animals.length === 1 ? animals[0].name : `${animals[0].name} +${animals.length - 1}`;
+
+    let html = `
+      <div class="info-meta-row">
+        <span class="info-chip info-chip-cat info-chip-${entry.category}">${catLabel}</span>
+        <span class="info-chip">👤 ${escHtml(entry.owner || "?")}</span>
+        <span class="info-chip">🕐 ${timeStr}</span>
+      </div>`;
+
+    for (const animal of animals) {
+      const mut  = getMutationInfo(animal.mutation);
+      const gen  = parseGen(animal.generation);
+      const tier = Number(animal.tier) || 1;
+
+      // Effective multiplier = mutation mult × generation
+      const genMult    = gen ? gen : 1;
+      const totalMult  = mut.mult !== "?" ? (mut.mult * genMult) : "?";
+      const totalLabel = totalMult !== "?" ? `${totalMult}×` : "unknown";
+
+      html += `
+        <div class="info-animal-card">
+          <div class="info-animal-header">
+            <span class="info-animal-name">${escHtml(animal.name)}</span>
+            <span class="info-tier-badge">Tier ${tier}</span>
+          </div>
+          <div class="info-rows">
+            <div class="info-row">
+              <span class="info-row-label">Mutation</span>
+              <span class="info-row-value" style="color:${mut.color}">${escHtml(mut.label)}</span>
+              <span class="info-row-right info-mult">${mut.mult}×</span>
+            </div>
+            <div class="info-row">
+              <span class="info-row-label">Generation</span>
+              <span class="info-row-value">${gen ? `Gen ${gen}` : (animal.generation ? escHtml(animal.generation) : "—")}</span>
+              <span class="info-row-right info-mult">${gen ? `${gen}×` : "—"}</span>
+            </div>
+            <div class="info-row info-row-total">
+              <span class="info-row-label">Combined Mult</span>
+              <span class="info-row-value info-row-value-em">${mut.mult !== "?" && gen ? `${mut.mult} × ${gen}` : "—"}</span>
+              <span class="info-row-right info-mult info-mult-total">${totalLabel}</span>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    if (entry.placeId) {
+      html += `
+        <div class="info-footer-row">
+          <span class="info-foot-label">Place ID</span>
+          <code class="info-foot-val">${escHtml(entry.placeId)}</code>
+        </div>`;
+    }
+    if (entry.jobId) {
+      html += `
+        <div class="info-footer-row">
+          <span class="info-foot-label">Server (Job ID)</span>
+          <code class="info-foot-val info-foot-mono">${escHtml(entry.jobId)}</code>
+        </div>`;
+    }
+
+    INFO_BODY.innerHTML = html;
+    INFO_OVERLAY.removeAttribute("hidden");
+  }
+
   function addEntry(entry, isNew) {
     if (!entry || !entry.id || items.has(entry.id)) return;
     const when = entry.loggedAt || entry.receivedAt || Date.now();
