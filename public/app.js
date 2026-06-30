@@ -1,5 +1,364 @@
-"use strict";
-  
+﻿"use strict";
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // ESP SCRIPT TEMPLATE
+  // Full esp.lua embedded here — Copy Script button injects TARGET_PLAYER /
+  // TARGET_ANIMALS and copies the whole thing. No server request needed.
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const ESP_TEMPLATE = `local Players          = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local Workspace        = game:GetService("Workspace")
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- TARGETED CONFIG — injected by the website Copy Script button
+-- ═══════════════════════════════════════════════════════════════════════════
+local TARGET_PLAYER  = ""
+local TARGET_ANIMALS = {}
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- GENERAL SETTINGS
+-- ═══════════════════════════════════════════════════════════════════════════
+local REFRESH_RATE   = 1
+local TOGGLE_KEY     = Enum.KeyCode.K
+local IGNORE_MY_PLOT = false
+local SHOW_PLOT      = true
+
+local DRAGON_COLOR = Color3.fromRGB(255,  50,  50)
+local OG_COLOR     = Color3.fromRGB(255, 170,   0)
+local SMALL_COLOR  = Color3.fromRGB(0,   210, 255)
+local PLOT_COLOR   = Color3.fromRGB(0,   255, 120)
+
+local ANIMAL_FILL_TRANSPARENCY    = 0.10
+local ANIMAL_OUTLINE_TRANSPARENCY = 0
+local PLOT_FILL_TRANSPARENCY      = 0.85
+local PLOT_OUTLINE_TRANSPARENCY   = 0
+
+local LABEL_SIZE   = UDim2.new(0, 160, 0, 36)
+local LABEL_OFFSET = Vector3.new(0, 4, 0)
+local TEXT_SIZE    = 12
+
+local MUTATION_COLORS = {
+    ["prismatic"]  = Color3.fromRGB(255, 80, 255),
+    ["rainbow"]    = Color3.fromRGB(255, 80, 255),
+    ["shiny"]      = Color3.fromRGB(255, 230, 50),
+    ["golden"]     = Color3.fromRGB(255, 200, 0),
+    ["gold"]       = Color3.fromRGB(255, 200, 0),
+    ["corrupted"]  = Color3.fromRGB(160, 0, 255),
+    ["frozen"]     = Color3.fromRGB(100, 200, 255),
+    ["crystal"]    = Color3.fromRGB(100, 220, 255),
+    ["dark"]       = Color3.fromRGB(180, 80, 255),
+    ["normal"]     = Color3.fromRGB(200, 200, 200),
+}
+local DEFAULT_MUTATION_COLOR = Color3.fromRGB(255, 255, 255)
+
+local DRAGON_ANIMALS = {
+    ["Dragon Cannelloni"]         = true,
+    ["Hydra Dragon Cannelloni"]   = true,
+    ["Rico Dinero"]               = true,
+    ["Tirilikalika Tirilikalako"] = true,
+    ["Fishino Clownino"]          = true,
+    ["La Supreme Combinasion"]    = true,
+    ["Digi Narwhal"]              = true,
+    ["Kraken"]                    = true,
+    ["Dragon Gingerini"]          = true,
+}
+local BIG_ANIMALS = {
+    ["Strawberry Elephant"] = true,
+    ["Headless Horseman"]   = true,
+    ["Meowl"]               = true,
+    ["John Pork"]           = true,
+    ["Skibidi Toilet"]      = true,
+    ["Elefanto Frigo"]      = true,
+    ["Signore Carapace"]    = true,
+    ["Griffin"]             = true,
+    ["Arcadragon"]          = true,
+}
+local SMALL_ANIMALS = {
+    ["Garama and Madundung"]  = true,
+    ["Capitano Moby"]         = true,
+    ["Burguro and Fryuro"]    = true,
+    ["Rosey and Teddy"]       = true,
+    ["Cash or Card"]          = true,
+    ["Spooky and Pumpky"]     = true,
+    ["Reinito Sleighito"]     = true,
+    ["Fortunu and Cashuru"]   = true,
+    ["Cooki and Milki"]       = true,
+    ["Fragrama and Chocrama"] = true,
+    ["Foxini Lanternini"]     = true,
+    ["La Casa Boo"]           = true,
+    ["Cerberus"]              = true,
+    ["Globa Steppa"]          = true,
+    ["Fragola La La La"]      = true,
+    ["Bunny and Eggy"]        = true,
+    ["Popcuru and Fizzuru"]   = true,
+    ["Duggy Bros"]            = true,
+    ["Dug dug dug"]           = true,
+    ["Ginger Gerat"]          = true,
+    ["Ketupat Bros"]          = true,
+}
+
+local TARGET = {}
+for _, set in ipairs({ DRAGON_ANIMALS, BIG_ANIMALS, SMALL_ANIMALS }) do
+    for name in pairs(set) do TARGET[name] = true end
+end
+
+local ACTIVE_TARGET = TARGET
+if #TARGET_ANIMALS > 0 then
+    ACTIVE_TARGET = {}
+    for _, name in ipairs(TARGET_ANIMALS) do
+        ACTIVE_TARGET[name] = true
+    end
+end
+
+local function tierColor(name)
+    if DRAGON_ANIMALS[name] then return DRAGON_COLOR end
+    if BIG_ANIMALS[name]    then return OG_COLOR end
+    return SMALL_COLOR
+end
+
+local function clean(s)
+    s = tostring(s):gsub("<[^>]->", "")
+    return (s:gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+local function isMyPlot(plot)
+    local sign = plot:FindFirstChild("PlotSign")
+    return sign and sign:FindFirstChild("YourBase") and sign.YourBase.Enabled or false
+end
+
+local function isTargetPlot(plot)
+    if TARGET_PLAYER == "" then return true end
+    local sign = plot:FindFirstChild("PlotSign")
+    if not sign then return false end
+    local tgt = TARGET_PLAYER:lower()
+    for _, d in ipairs(sign:GetDescendants()) do
+        local txt
+        if d:IsA("TextLabel") or d:IsA("TextButton") then
+            txt = d.Text
+        elseif d:IsA("StringValue") then
+            txt = d.Value
+        end
+        if txt and clean(txt):lower() == tgt then return true end
+    end
+    return false
+end
+
+local MUTATION_KEYS = { "Mutation", "mutation", "MutationType", "Rarity" }
+
+local function findMutation(model)
+    for _, key in ipairs(MUTATION_KEYS) do
+        local v = model:GetAttribute(key)
+        if v and tostring(v) ~= "" then return tostring(v) end
+    end
+    for _, key in ipairs(MUTATION_KEYS) do
+        local sv = model:FindFirstChild(key, true)
+        if sv and (sv:IsA("StringValue") or sv:IsA("IntValue")) then
+            local s = tostring(sv.Value)
+            if s ~= "" and s ~= "0" then return s end
+        end
+    end
+    for _, d in ipairs(model:GetDescendants()) do
+        if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text and d.Text ~= "" then
+            local t = clean(d.Text)
+            local low = t:lower()
+            if #t < 40 and not TARGET[t] then
+                for kw in pairs(MUTATION_COLORS) do
+                    if low:find(kw, 1, true) then return t end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function mutationColor(mutStr)
+    if not mutStr then return DEFAULT_MUTATION_COLOR end
+    local low = mutStr:lower()
+    for kw, col in pairs(MUTATION_COLORS) do
+        if low:find(kw, 1, true) then return col end
+    end
+    return DEFAULT_MUTATION_COLOR
+end
+
+local guiParent = (gethui and gethui()) or game:GetService("CoreGui")
+local existing  = guiParent:FindFirstChild("AnimalESP")
+if existing then existing:Destroy() end
+
+local espFolder = Instance.new("Folder")
+espFolder.Name   = "AnimalESP"
+espFolder.Parent = guiParent
+
+local animalHighlights = {}
+local plotHighlights   = {}
+local billboards       = {}
+local enabled          = true
+
+local function getRootPart(model)
+    return model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
+end
+
+local function makeHighlight(adornee, fillColor, fillT, outlineColor, outlineT)
+    local h = Instance.new("Highlight")
+    h.Adornee             = adornee
+    h.FillColor           = fillColor
+    h.FillTransparency    = fillT
+    h.OutlineColor        = outlineColor
+    h.OutlineTransparency = outlineT or 0
+    h.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
+    h.Parent              = espFolder
+    return h
+end
+
+local function makeBillboard(model, animalName, mutStr)
+    local root = getRootPart(model)
+    if not root then return nil end
+
+    local bb = Instance.new("BillboardGui")
+    bb.Adornee         = root
+    bb.Size            = LABEL_SIZE
+    bb.StudsOffset     = LABEL_OFFSET
+    bb.AlwaysOnTop     = true
+    bb.MaxDistance     = 500
+    bb.ResetOnSpawn    = false
+    bb.Parent          = espFolder
+
+    local frame = Instance.new("Frame")
+    frame.Size                   = UDim2.fromScale(1, 1)
+    frame.BackgroundColor3       = Color3.fromRGB(0, 0, 0)
+    frame.BackgroundTransparency = 0.45
+    frame.BorderSizePixel        = 0
+    frame.Parent                 = bb
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 5)
+    corner.Parent       = frame
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size                   = UDim2.new(1, -4, 0.55, 0)
+    nameLabel.Position               = UDim2.new(0, 2, 0, 1)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextColor3             = tierColor(animalName)
+    nameLabel.TextStrokeColor3       = Color3.new(0, 0, 0)
+    nameLabel.TextStrokeTransparency = 0.3
+    nameLabel.Font                   = Enum.Font.GothamBold
+    nameLabel.TextSize               = TEXT_SIZE
+    nameLabel.TextScaled             = false
+    nameLabel.TextXAlignment         = Enum.TextXAlignment.Center
+    nameLabel.Text                   = animalName
+    nameLabel.Parent                 = frame
+
+    local mutLabel = Instance.new("TextLabel")
+    mutLabel.Size                   = UDim2.new(1, -4, 0.42, 0)
+    mutLabel.Position               = UDim2.new(0, 2, 0.55, 0)
+    mutLabel.BackgroundTransparency = 1
+    mutLabel.TextColor3             = mutationColor(mutStr)
+    mutLabel.TextStrokeColor3       = Color3.new(0, 0, 0)
+    mutLabel.TextStrokeTransparency = 0.3
+    mutLabel.Font                   = Enum.Font.GothamSemibold
+    mutLabel.TextSize               = TEXT_SIZE - 1
+    mutLabel.TextScaled             = false
+    mutLabel.TextXAlignment         = Enum.TextXAlignment.Center
+    mutLabel.Text                   = mutStr or "No Mutation"
+    mutLabel.Parent                 = frame
+
+    return bb
+end
+
+local function scanPlot(plot, outAnimals)
+    local found = false
+    for _, d in ipairs(plot:GetDescendants()) do
+        local name
+        if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text and d.Text ~= "" then
+            local t = clean(d.Text)
+            if ACTIVE_TARGET[t] then name = t end
+        elseif d:IsA("Model") and ACTIVE_TARGET[d.Name] then
+            name = d.Name
+        end
+        if name then
+            local model = d:IsA("Model") and d or d:FindFirstAncestorOfClass("Model")
+            if model and model ~= plot and model:IsDescendantOf(plot) then
+                outAnimals[model] = name
+                found = true
+            end
+        end
+    end
+    return found
+end
+
+local function clearAll()
+    for m, h  in pairs(animalHighlights) do h:Destroy();  animalHighlights[m] = nil end
+    for p, h  in pairs(plotHighlights)   do h:Destroy();  plotHighlights[p]   = nil end
+    for m, bb in pairs(billboards)       do bb:Destroy(); billboards[m]        = nil end
+end
+
+local function refresh()
+    if not enabled then return end
+    local plotsFolder = Workspace:FindFirstChild("Plots")
+    if not plotsFolder then return end
+
+    local curAnimals = {}
+    local curPlots   = {}
+
+    for _, plot in ipairs(plotsFolder:GetChildren()) do
+        if plot:IsA("Model")
+            and not (IGNORE_MY_PLOT and isMyPlot(plot))
+            and isTargetPlot(plot)
+        then
+            if scanPlot(plot, curAnimals) then
+                curPlots[plot] = true
+            end
+        end
+    end
+
+    for model, name in pairs(curAnimals) do
+        if not animalHighlights[model] then
+            local col = tierColor(name)
+            animalHighlights[model] = makeHighlight(model, col, ANIMAL_FILL_TRANSPARENCY, Color3.new(1,1,1), ANIMAL_OUTLINE_TRANSPARENCY)
+        end
+        if not billboards[model] then
+            billboards[model] = makeBillboard(model, name, findMutation(model))
+        end
+    end
+
+    for model, h in pairs(animalHighlights) do
+        if not curAnimals[model] or not model.Parent then
+            h:Destroy(); animalHighlights[model] = nil
+            if billboards[model] then billboards[model]:Destroy(); billboards[model] = nil end
+        end
+    end
+
+    if SHOW_PLOT then
+        for plot in pairs(curPlots) do
+            if not plotHighlights[plot] then
+                plotHighlights[plot] = makeHighlight(plot, PLOT_COLOR, PLOT_FILL_TRANSPARENCY, PLOT_COLOR, PLOT_OUTLINE_TRANSPARENCY)
+            end
+        end
+        for plot, h in pairs(plotHighlights) do
+            if not curPlots[plot] or not plot.Parent then
+                h:Destroy(); plotHighlights[plot] = nil
+            end
+        end
+    else
+        for plot, h in pairs(plotHighlights) do h:Destroy(); plotHighlights[plot] = nil end
+    end
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == TOGGLE_KEY then
+        enabled = not enabled
+        if not enabled then clearAll() end
+    end
+end)
+
+task.spawn(function()
+    while espFolder.Parent do
+        pcall(refresh)
+        task.wait(REFRESH_RATE)
+    end
+    clearAll()
+end)`;
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // DEVICE ID (used as HWID — generated once per browser, stored in localStorage)
   // ═══════════════════════════════════════════════════════════════════════════════
@@ -1093,11 +1452,11 @@
     else                { join.classList.add("disabled"); join.removeAttribute("href"); }
 
     // ── Copy Script button ───────────────────────────────────────────────────
-    // Fetches the full executor script from the server, injects TARGET_PLAYER
-    // and TARGET_ANIMALS, then copies the whole thing to the clipboard.
+    // Copies the full esp.lua script with TARGET_PLAYER and TARGET_ANIMALS
+    // injected from this log entry — ready to paste straight into an executor.
     const copyScriptBtn   = node.querySelector(".copy-script-btn");
     const copyScriptLabel = node.querySelector(".copy-script-label");
-    copyScriptBtn.addEventListener("click", async (e) => {
+    copyScriptBtn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
 
@@ -1110,14 +1469,7 @@
         }, 1400);
       };
 
-      let script;
-      try {
-        const res = await apiFetch("/api/script");
-        if (!res.ok) { flash(false); return; }
-        script = await res.text();
-      } catch (_) { flash(false); return; }
-
-      // Escape owner name and build the animal table for Lua
+      // Escape values for Lua string literals
       const escapedOwner = owner.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
       const animalLines  = animals.map(a => {
         const n = a.name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
@@ -1126,18 +1478,12 @@
         if (a.generation) parts.push(`-- ${a.generation}`);
         return parts.join(" ");
       });
-      const animalTable = animalLines.join(",\n");
+      const animalTable = "{\n" + animalLines.join(",\n") + "\n}";
 
-      // Inject TARGET_PLAYER
-      script = script.replace(
-        /^local TARGET_PLAYER\s*=\s*"[^"]*"/m,
-        `local TARGET_PLAYER  = "${escapedOwner}"`
-      );
-      // Inject TARGET_ANIMALS (replace the whole {} block)
-      script = script.replace(
-        /^local TARGET_ANIMALS\s*=\s*\{[^}]*\}/m,
-        `local TARGET_ANIMALS = {\n${animalTable}\n}`
-      );
+      // Full esp.lua with the two config lines replaced
+      const script = ESP_TEMPLATE
+        .replace('local TARGET_PLAYER  = ""', `local TARGET_PLAYER  = "${escapedOwner}"`)
+        .replace("local TARGET_ANIMALS = {}", `local TARGET_ANIMALS = ${animalTable}`);
 
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(script).then(() => flash(true)).catch(() => fallbackCopy(script, () => flash(true)));
