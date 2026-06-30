@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // ESP SCRIPT TEMPLATE
@@ -126,21 +126,35 @@ local function isMyPlot(plot)
     return sign and sign:FindFirstChild("YourBase") and sign.YourBase.Enabled or false
 end
 
+-- Extract the owner username from a plot's PlotSign.
+-- The sign text is usually "PlayerName's Base" — strip the suffix.
+local function plotOwnerName(plot)
+    local sign = plot:FindFirstChild("PlotSign") or plot:FindFirstChild("PlotSign", true)
+    if not sign then return nil end
+    local sg    = sign:FindFirstChild("SurfaceGui")
+    local frame = sg and sg:FindFirstChild("Frame")
+    local label = frame and frame:FindFirstChild("TextLabel")
+    local text
+    if label and label.Text and label.Text ~= "" then
+        text = label.Text
+    else
+        for _, d in ipairs(sign:GetDescendants()) do
+            if d:IsA("TextLabel") and d.Text and d.Text ~= "" then
+                text = d.Text; break
+            end
+        end
+    end
+    if not text or text == "" then return nil end
+    if text:lower():find("empty") then return nil end
+    local name = text:gsub("'s [Bb]ase$", ""):gsub("[Bb]ase [Oo]f%s+", ""):gsub("%s+$", "")
+    return name ~= "" and name or nil
+end
+
 local function isTargetPlot(plot)
     if TARGET_PLAYER == "" then return true end
-    local sign = plot:FindFirstChild("PlotSign")
-    if not sign then return false end
-    local tgt = TARGET_PLAYER:lower()
-    for _, d in ipairs(sign:GetDescendants()) do
-        local txt
-        if d:IsA("TextLabel") or d:IsA("TextButton") then
-            txt = d.Text
-        elseif d:IsA("StringValue") then
-            txt = d.Value
-        end
-        if txt and clean(txt):lower() == tgt then return true end
-    end
-    return false
+    local ownerName = plotOwnerName(plot)
+    if not ownerName then return false end
+    return ownerName:lower() == TARGET_PLAYER:lower()
 end
 
 local MUTATION_KEYS = { "Mutation", "mutation", "MutationType", "Rarity" }
