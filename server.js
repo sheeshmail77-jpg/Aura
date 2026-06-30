@@ -48,6 +48,7 @@
   // ─── user store ──────────────────────────────────────────────────────────────
   const DATA_DIR   = path.join(__dirname, "data");
   const USERS_FILE = path.join(DATA_DIR, "users.json");
+  const KEYS_FILE  = path.join(DATA_DIR, "keys.json");
   
   function ensureDataDir() {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -67,7 +68,54 @@
       fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), "utf8");
     } catch (e) { console.error("[auth] Failed to save users:", e.message); }
   }
-  
+
+  // ─── key store ───────────────────────────────────────────────────────────────
+  function loadKeys() {
+    try {
+      ensureDataDir();
+      if (!fs.existsSync(KEYS_FILE)) return [];
+      return JSON.parse(fs.readFileSync(KEYS_FILE, "utf8"));
+    } catch (_) { return []; }
+  }
+
+  function saveKeys(keys) {
+    try {
+      ensureDataDir();
+      fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2), "utf8");
+    } catch (e) { console.error("[keys] Failed to save keys:", e.message); }
+  }
+
+  function generateKey() {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    const seg = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+    return `AURA-${seg()}-${seg()}-${seg()}`;
+  }
+
+  // Parse duration strings like "1h", "30m", "2d", "1h30m", "90" (minutes).
+  // Returns milliseconds, or null if unparseable.
+  function parseDuration(str) {
+    if (!str) return null;
+    const s = String(str).trim().toLowerCase();
+    const re = /(\d+)\s*([dhm])/gi;
+    let ms = 0;
+    let matched = false;
+    let m;
+    while ((m = re.exec(s)) !== null) {
+      const n = parseInt(m[1], 10);
+      const u = m[2].toLowerCase();
+      if      (u === "d") ms += n * 24 * 60 * 60 * 1000;
+      else if (u === "h") ms += n * 60 * 60 * 1000;
+      else if (u === "m") ms += n * 60 * 1000;
+      matched = true;
+    }
+    if (!matched) {
+      const n = parseInt(s, 10);
+      if (!isNaN(n) && n > 0) return n * 60 * 1000; // bare number = minutes
+      return null;
+    }
+    return ms > 0 ? ms : null;
+  }
+
   // ─── helpers ──────────────────────────────────────────────────────────────────
   function getClientIp(req) {
     return (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown")
@@ -251,6 +299,70 @@
   
   app.get("/api/auth/me", requireAuth, (req, res) => {
     res.json({ user: { id: req.user.id, username: req.user.username, role: req.user.role } });
+  });
+
+  // POST /api/auth/redeem  { key }
+  // Validates a generated key and immediately logs the user in as a new viewer.
+  app.post("/api/auth/redeem", async (req, res) => {
+    const { key } = req.body || {};
+    if (!key || typeof key !== "string")
+      return res.status(400).json({ error: "key is required" });
+
+    const keyStr = key.trim().toUpperCase();
+    const keys   = loadKeys();
+    const idx    = keys.findIndex(k => k.key === keyStr);
+
+    if (idx === -1)
+      return res.status(400).json({ error: "Invalid key. Double-check and try again." });
+
+    const entry = keys[idx];
+
+    // Expiry check
+    if (entry.expiresAt && Date.now() > new Date(entry.expiresAt).getTime()) {
+      keys.splice(idx, 1);
+      saveKeys(keys);
+      return res.status(400).json({ error: "This key has expired." });
+    }
+
+    // Uses check
+    if (entry.usesLeft <= 0) {
+      keys.splice(idx, 1);
+      saveKeys(keys);
+      return res.status(400).json({ error: "This key has already been fully redeemed." });
+    }
+
+    // Consume one use
+    entry.usesLeft--;
+    if (entry.usesLeft <= 0) keys.splice(idx, 1);
+    saveKeys(keys);
+
+    // Create a viewer account for this redemption
+    const suffix       = crypto.randomBytes(4).toString("hex");
+    const username     = "user_" + suffix;
+    const passwordHash = await bcrypt.hash(crypto.randomBytes(16).toString("hex"), 12);
+
+    const newUser = {
+      id:           Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
+      username,
+      passwordHash,
+      role:         "viewer",
+      createdAt:    new Date().toISOString(),
+      expiresAt:    entry.expiresAt || null,
+      lockedIp:     null,
+      lockedHwid:   null,
+      ogAccess:     true,
+      dragonAccess: true,
+      smallAccess:  true,
+    };
+
+    const users = loadUsers();
+    users.push(newUser);
+    saveUsers(users);
+
+    return res.json({
+      token: signToken({ id: newUser.id, username: newUser.username, role: "viewer" }),
+      user:  { id: newUser.id, username: newUser.username, role: "viewer" },
+    });
   });
   
   // ─── admin routes ─────────────────────────────────────────────────────────────
@@ -1002,12 +1114,17 @@
       return;
     }
 
+    // Only this Discord user ID may use /genkey
+    const GENKEY_OWNER_ID = "1345871452447969332";
+
     const { WebSocket: GWS } = require("ws");
     let gws              = null;
     let hbInterval       = null;
     let seq              = null;
     let sessionId        = null;
     let resumeUrl        = null;
+    let appId            = null;  // filled from READY event
+    let commandRegistered = false;
 
     function send(op, d) {
       if (gws && gws.readyState === 1) gws.send(JSON.stringify({ op, d }));
@@ -1019,6 +1136,95 @@
         intents: 0, // no privileged intents needed for presence + DMs
         properties: { os: "linux", browser: "brainrot-logger", device: "brainrot-logger" },
       });
+    }
+
+    // Register the /genkey slash command for the configured guild.
+    function registerCommand(applicationId) {
+      if (commandRegistered) return;
+      const guildId = process.env.DISCORD_GUILD_ID;
+      if (!guildId) { console.warn("[discord] DISCORD_GUILD_ID not set – cannot register /genkey."); return; }
+
+      const body = JSON.stringify({
+        name:        "genkey",
+        description: "Generate a site redemption key",
+        options: [
+          {
+            name:        "duration",
+            description: "How long the key is valid (e.g. 1h, 30m, 2d)",
+            type:        3,  // STRING
+            required:    true,
+          },
+          {
+            name:        "uses",
+            description: "How many times the key can be redeemed (default 1)",
+            type:        4,  // INTEGER
+            required:    false,
+            min_value:   1,
+            max_value:   100,
+          },
+        ],
+      });
+
+      discordApiRequest("POST", `/applications/${applicationId}/guilds/${guildId}/commands`, JSON.parse(body), (err, status) => {
+        if (err || status >= 400) {
+          console.error("[discord] Failed to register /genkey command:", err && err.message, status);
+        } else {
+          commandRegistered = true;
+          console.log("[discord] /genkey command registered.");
+        }
+      });
+    }
+
+    // Respond to an interaction via REST.
+    function interactionReply(interactionId, interactionToken, content, ephemeral) {
+      discordApiRequest(
+        "POST",
+        `/interactions/${interactionId}/${interactionToken}/callback`,
+        { type: 4, data: { content, flags: ephemeral ? 64 : 0 } },
+        () => {}
+      );
+    }
+
+    // Handle /genkey interaction.
+    function handleGenkeyInteraction(d) {
+      const userId = d.member && d.member.user ? d.member.user.id : (d.user && d.user.id);
+      if (userId !== GENKEY_OWNER_ID) {
+        return interactionReply(d.id, d.token, "❌ You are not authorised to use this command.", true);
+      }
+
+      const opts        = (d.data && d.data.options) || [];
+      const durationOpt = opts.find(o => o.name === "duration");
+      const usesOpt     = opts.find(o => o.name === "uses");
+
+      const durationStr = durationOpt ? String(durationOpt.value) : null;
+      const usesCount   = usesOpt     ? Math.max(1, parseInt(usesOpt.value, 10) || 1) : 1;
+
+      const durationMs = parseDuration(durationStr);
+      if (!durationMs) {
+        return interactionReply(d.id, d.token, "❌ Invalid duration. Use formats like `1h`, `30m`, `2d`, `1h30m`.", true);
+      }
+
+      const key       = generateKey();
+      const expiresAt = new Date(Date.now() + durationMs).toISOString();
+
+      const keys = loadKeys();
+      keys.push({ key, expiresAt, usesLeft: usesCount, usesTotal: usesCount, createdAt: new Date().toISOString() });
+      saveKeys(keys);
+
+      // Format readable expiry
+      const expDate = new Date(expiresAt);
+      const expStr  = expDate.toUTCString();
+
+      const msg = [
+        `🔑 **Key generated!**`,
+        `\`${key}\``,
+        `⏱ Expires: ${expStr}`,
+        `🔢 Uses: ${usesCount}`,
+        ``,
+        `Share this key — whoever redeems it on the site gets instant viewer access.`,
+      ].join("\n");
+
+      interactionReply(d.id, d.token, msg, true); // ephemeral so only you see it
     }
 
     function connect(url) {
@@ -1049,7 +1255,14 @@
             if (t === "READY") {
               sessionId = d.session_id;
               resumeUrl = d.resume_gateway_url;
+              appId     = d.application && d.application.id;
               console.log("[discord] Bot online as", d.user && d.user.username + "#" + d.user.discriminator);
+              if (appId) registerCommand(appId);
+            }
+
+            if (t === "INTERACTION_CREATE") {
+              const cmdName = d.data && d.data.name;
+              if (cmdName === "genkey") handleGenkeyInteraction(d);
             }
             break;
 
