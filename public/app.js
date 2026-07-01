@@ -1883,40 +1883,230 @@ end)`;
 })();
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// PURCHASE MODAL
-// Opens when the topbar Purchase button is clicked.
-// Each plan buy button shows a simple confirmation message (no payment flow).
+// PURCHASE MODAL — multi-step crypto payment flow
+//   Step 1 → pick plan
+//   Step 2 → pick coin (SOL / LTC)
+//   Step 3 → show wallet + amount, accept TX hash
+//   Step 4 → success screen with generated credentials
 // ═══════════════════════════════════════════════════════════════════════════════
 (() => {
-  const overlay     = document.getElementById("purchaseOverlay");
-  const purchaseBtn = document.getElementById("purchaseBtn");
-  const closeBtn    = document.getElementById("purchaseClose");
+  // ── DOM refs ─────────────────────────────────────────────────────────────
+  const overlay      = document.getElementById("purchaseOverlay");
+  const purchaseBtn  = document.getElementById("purchaseBtn");
+  const closeBtn     = document.getElementById("purchaseClose");
+  const modalTitle   = document.getElementById("purchaseModalTitle");
 
-  const PLAN_LABELS = {
-    small: "Small Plan — Newbie Highlights",
-    mid:   "Mid Plan — Dragon + Small",
-    high:  "High Plan — Full Access (OG + Dragon + Small)",
-  };
+  const step1El = document.getElementById("puStep1");
+  const step2El = document.getElementById("puStep2");
+  const step3El = document.getElementById("puStep3");
+  const step4El = document.getElementById("puStep4");
 
-  function openModal()  { overlay.removeAttribute("hidden"); }
+  const ind1 = document.getElementById("puInd1");
+  const ind2 = document.getElementById("puInd2");
+  const ind3 = document.getElementById("puInd3");
+
+  // Step 2
+  const planLabel  = document.getElementById("puSelectedPlanLabel");
+  const priceSol   = document.getElementById("puPriceSol");
+  const priceLtc   = document.getElementById("puPriceLtc");
+
+  // Step 3
+  const summaryPlan   = document.getElementById("puSummaryPlan");
+  const summaryAmount = document.getElementById("puSummaryAmount");
+  const summaryAddr   = document.getElementById("puSummaryAddr");
+  const copyAddrBtn   = document.getElementById("puCopyAddr");
+  const txHashInput   = document.getElementById("puTxHash");
+  const verifyError   = document.getElementById("puVerifyError");
+  const verifyBtn     = document.getElementById("puVerifyBtn");
+  const verifyBtnText = document.getElementById("puVerifyBtnText");
+  const verifySpinner = document.getElementById("puVerifySpinner");
+
+  // Step 4
+  const credUser      = document.getElementById("puCredUser");
+  const credPass      = document.getElementById("puCredPass");
+  const loginWithCreds= document.getElementById("puLoginWithCreds");
+
+  // ── state ─────────────────────────────────────────────────────────────────
+  let config    = null;  // fetched from /api/purchase/config
+  let selPlan   = null;
+  let selCoin   = null;
+  let savedCreds= null;  // { username, password } after purchase
+
+  const PLAN_NAMES = { small: "Small Plan", mid: "Mid Plan", high: "High Plan" };
+  const COIN_NAMES = { sol: "SOL", ltc: "LTC" };
+
+  // ── step navigation ───────────────────────────────────────────────────────
+  function showStep(n) {
+    [step1El, step2El, step3El, step4El].forEach((el, i) => {
+      el.hidden = (i + 1 !== n);
+    });
+    [ind1, ind2, ind3].forEach((el, i) => {
+      el.className = "pu-step " + (i + 1 <= n ? "pu-step-active" : "pu-step-inactive");
+    });
+    const titles = ["Choose a Plan", "Choose Payment Coin", "Send Payment", "Access Granted!"];
+    modalTitle.textContent = titles[n - 1] || "Purchase";
+  }
+
+  // ── fetch config (prices + wallet addresses) ──────────────────────────────
+  async function loadConfig() {
+    try {
+      const r = await fetch("/api/purchase/config");
+      if (!r.ok) throw new Error("not configured");
+      config = await r.json();
+    } catch (_) {
+      config = null;
+    }
+  }
+
+  // ── open / close ──────────────────────────────────────────────────────────
+  function openModal() {
+    showStep(1);
+    selPlan = selCoin = savedCreds = null;
+    verifyError.hidden = true;
+    txHashInput.value  = "";
+    overlay.removeAttribute("hidden");
+    if (!config) loadConfig(); // lazy-load prices
+  }
   function closeModal() { overlay.setAttribute("hidden", ""); }
 
   purchaseBtn.addEventListener("click", openModal);
   closeBtn.addEventListener("click", closeModal);
   overlay.addEventListener("click", e => { if (e.target === overlay) closeModal(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !overlay.hidden) closeModal(); });
 
-  // Plan buy buttons — show a prompt/alert with contact info
-  overlay.querySelectorAll(".plan-buy-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const plan = btn.dataset.plan;
-      const label = PLAN_LABELS[plan] || plan;
-      // Replace the alert below with your own payment link or DM flow as needed
-      alert(`You selected: ${label}\n\nPlease contact an admin on Discord to complete your purchase and have your access activated.`);
+  // ── Step 1: plan selection ─────────────────────────────────────────────
+  step1El.querySelectorAll(".plan-buy-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      selPlan = btn.dataset.plan;
+
+      // Ensure config is loaded before showing prices
+      if (!config) await loadConfig();
+
+      planLabel.textContent = PLAN_NAMES[selPlan] || selPlan;
+
+      if (config) {
+        const ps = config.prices[selPlan];
+        const ws = config.wallets;
+        priceSol.textContent = (ps && ps.sol > 0 && ws.sol) ? `${ps.sol} SOL` : "—";
+        priceLtc.textContent = (ps && ps.ltc > 0 && ws.ltc) ? `${ps.ltc} LTC` : "—";
+
+        // Disable coin buttons if not configured
+        step2El.querySelectorAll(".pu-coin-btn").forEach(cb => {
+          const coin = cb.dataset.coin;
+          const hasWallet = !!config.wallets[coin];
+          const hasPrice  = config.prices[selPlan][coin] > 0;
+          cb.disabled = !(hasWallet && hasPrice);
+          cb.style.opacity = (hasWallet && hasPrice) ? "" : "0.35";
+        });
+      } else {
+        priceSol.textContent = "N/A";
+        priceLtc.textContent = "N/A";
+      }
+
+      showStep(2);
     });
   });
 
-  // Close on Escape key
-  document.addEventListener("keydown", e => {
-    if (e.key === "Escape" && !overlay.hidden) closeModal();
+  // ── Step 2: coin selection ─────────────────────────────────────────────
+  step2El.querySelectorAll(".pu-coin-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (btn.disabled) return;
+      selCoin = btn.dataset.coin;
+
+      if (!config) { showStep(1); return; }
+
+      const price  = config.prices[selPlan][selCoin];
+      const wallet = config.wallets[selCoin];
+      const ticker = COIN_NAMES[selCoin];
+
+      summaryPlan.textContent   = `${PLAN_NAMES[selPlan]} · ${ticker}`;
+      summaryAmount.textContent = `${price} ${ticker}`;
+      summaryAddr.textContent   = wallet;
+
+      verifyError.hidden = true;
+      txHashInput.value  = "";
+      showStep(3);
+    });
+  });
+
+  document.getElementById("puBackToStep1").addEventListener("click", () => showStep(1));
+  document.getElementById("puBackToStep2").addEventListener("click", () => showStep(2));
+
+  // ── Step 3: copy address ───────────────────────────────────────────────
+  copyAddrBtn.addEventListener("click", () => {
+    const addr = config && config.wallets[selCoin];
+    if (!addr) return;
+    navigator.clipboard.writeText(addr).then(() => {
+      copyAddrBtn.classList.add("copied");
+      setTimeout(() => copyAddrBtn.classList.remove("copied"), 1800);
+    }).catch(() => {});
+  });
+
+  // ── Step 3: verify TX ──────────────────────────────────────────────────
+  function showErr(msg) {
+    verifyError.textContent = msg;
+    verifyError.hidden = false;
+  }
+
+  verifyBtn.addEventListener("click", async () => {
+    const hash = txHashInput.value.trim();
+    if (!hash) { showErr("Please paste your transaction hash."); return; }
+
+    verifyError.hidden   = true;
+    verifyBtn.disabled   = true;
+    verifyBtnText.hidden = true;
+    verifySpinner.removeAttribute("hidden");
+
+    try {
+      const r = await fetch("/api/purchase/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ txHash: hash, coin: selCoin, plan: selPlan }),
+      });
+      const data = await r.json();
+
+      if (!r.ok) { showErr(data.error || "Verification failed. Please try again."); return; }
+
+      // Success — show credentials
+      savedCreds = { username: data.username, password: data.password };
+      credUser.textContent = data.username;
+      credPass.textContent = data.password;
+      showStep(4);
+
+    } catch (_) {
+      showErr("Network error. Please check your connection and try again.");
+    } finally {
+      verifyBtn.disabled   = false;
+      verifyBtnText.hidden = false;
+      verifySpinner.setAttribute("hidden", "");
+    }
+  });
+
+  txHashInput.addEventListener("keydown", e => { if (e.key === "Enter") verifyBtn.click(); });
+
+  // ── Step 4: copy credentials ───────────────────────────────────────────
+  step4El.querySelectorAll(".pu-copy-cred").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (!savedCreds) return;
+      const val = btn.dataset.copy === "user" ? savedCreds.username : savedCreds.password;
+      navigator.clipboard.writeText(val).then(() => {
+        btn.classList.add("copied");
+        setTimeout(() => btn.classList.remove("copied"), 1800);
+      }).catch(() => {});
+    });
+  });
+
+  // ── Step 4: auto-fill login form + close modal ─────────────────────────
+  loginWithCreds.addEventListener("click", () => {
+    if (!savedCreds) { closeModal(); return; }
+    // Pre-fill the sign-in form if it's visible
+    const unEl = document.getElementById("loginUsername");
+    const pwEl = document.getElementById("loginPassword");
+    if (unEl) unEl.value = savedCreds.username;
+    if (pwEl) pwEl.value = savedCreds.password;
+    // Switch to sign-in tab if on redeem tab
+    const signinTab = document.getElementById("tabSignin");
+    if (signinTab) signinTab.click();
+    closeModal();
   });
 })();
