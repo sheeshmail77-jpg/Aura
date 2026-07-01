@@ -771,6 +771,176 @@
     for (const [k, v] of discordCodes) if (now > v.expiresAt) discordCodes.delete(k);
   }, 15 * 60 * 1000);
 
+  // ─── purchase system ─────────────────────────────────────────────────────────
+
+  const PURCHASE_WALLETS = {
+    sol: (process.env.WALLET_SOL || "").trim(),
+    ltc: (process.env.WALLET_LTC || "").trim(),
+  };
+
+  const PURCHASE_PRICES = {
+    small: { sol: parseFloat(process.env.PRICE_SMALL_SOL || "0"), ltc: parseFloat(process.env.PRICE_SMALL_LTC || "0") },
+    mid:   { sol: parseFloat(process.env.PRICE_MID_SOL   || "0"), ltc: parseFloat(process.env.PRICE_MID_LTC   || "0") },
+    high:  { sol: parseFloat(process.env.PRICE_HIGH_SOL  || "0"), ltc: parseFloat(process.env.PRICE_HIGH_LTC  || "0") },
+  };
+
+  const PLAN_ACCESS = {
+    small: { ogAccess: false, dragonAccess: false, smallAccess: true  },
+    mid:   { ogAccess: false, dragonAccess: true,  smallAccess: true  },
+    high:  { ogAccess: true,  dragonAccess: true,  smallAccess: true  },
+  };
+
+  // ── used-TX store (replay protection) ─────────────────────────────────────
+  const TX_FILE = path.join(DATA_DIR, "used_txs.json");
+
+  function loadUsedTxs() {
+    try {
+      ensureDataDir();
+      if (!fs.existsSync(TX_FILE)) return new Set();
+      return new Set(JSON.parse(fs.readFileSync(TX_FILE, "utf8")));
+    } catch (_) { return new Set(); }
+  }
+  function isTxUsed(hash) { return loadUsedTxs().has(hash.toLowerCase()); }
+  function markTxUsed(hash) {
+    try {
+      ensureDataDir();
+      const s = loadUsedTxs();
+      s.add(hash.toLowerCase());
+      fs.writeFileSync(TX_FILE, JSON.stringify([...s]), "utf8");
+    } catch (e) { console.error("[purchase] Failed to save TX:", e.message); }
+  }
+
+  // ── on-chain verification helpers ─────────────────────────────────────────
+
+  // Solana: uses mainnet-beta public RPC — no API key required
+  function verifySolTx(txHash, walletAddr, expectedSol) {
+    return new Promise((resolve, reject) => {
+      const body = Buffer.from(JSON.stringify({
+        jsonrpc: "2.0", id: 1,
+        method: "getTransaction",
+        params: [txHash, { encoding: "jsonParsed", commitment: "finalized", maxSupportedTransactionVersion: 0 }],
+      }));
+      const req = https.request({
+        hostname: "api.mainnet-beta.solana.com",
+        path: "/", method: "POST",
+        headers: { "Content-Type": "application/json", "Content-Length": body.length },
+      }, res => {
+        let raw = "";
+        res.on("data", c => raw += c);
+        res.on("end", () => {
+          try {
+            const json = JSON.parse(raw);
+            if (!json.result) return resolve({ ok: false, error: "Transaction not found or not finalized yet. Please wait a moment and try again." });
+            const tx   = json.result;
+            const keys = tx.transaction.message.accountKeys;
+            const idx  = keys.findIndex(k => (typeof k === "string" ? k : k.pubkey) === walletAddr);
+            if (idx === -1) return resolve({ ok: false, error: "Payment was not sent to the correct wallet." });
+            const received = (tx.meta.postBalances[idx] - tx.meta.preBalances[idx]) / 1e9;
+            if (received < expectedSol * 0.99)
+              return resolve({ ok: false, error: `Insufficient payment. Expected ~${expectedSol} SOL, received ${received.toFixed(6)} SOL.` });
+            resolve({ ok: true });
+          } catch (e) { reject(e); }
+        });
+      });
+      req.on("error", reject);
+      req.write(body);
+      req.end();
+    });
+  }
+
+  // Litecoin: BlockCypher free API — no key required
+  function verifyLtcTx(txHash, walletAddr, expectedLtc) {
+    return new Promise((resolve, reject) => {
+      const req = https.request({
+        hostname: "api.blockcypher.com",
+        path: `/v1/ltc/main/txs/${encodeURIComponent(txHash)}?limit=50`,
+        method: "GET",
+      }, res => {
+        let raw = "";
+        res.on("data", c => raw += c);
+        res.on("end", () => {
+          try {
+            const json = JSON.parse(raw);
+            if (json.error) return resolve({ ok: false, error: "Transaction not found on the Litecoin network." });
+            if ((json.confirmations || 0) < 1) return resolve({ ok: false, error: "Transaction has 0 confirmations — please wait ~1 minute and try again." });
+            let satoshis = 0;
+            for (const out of (json.outputs || []))
+              if ((out.addresses || []).includes(walletAddr)) satoshis += (out.value || 0);
+            const received = satoshis / 1e8;
+            if (received < expectedLtc * 0.99)
+              return resolve({ ok: false, error: `Insufficient payment. Expected ~${expectedLtc} LTC, received ${received.toFixed(6)} LTC.` });
+            resolve({ ok: true });
+          } catch (e) { reject(e); }
+        });
+      });
+      req.on("error", reject);
+      req.end();
+    });
+  }
+
+  // GET /api/purchase/config — public; returns wallets + prices
+  app.get("/api/purchase/config", (_req, res) => {
+    if (!PURCHASE_WALLETS.sol && !PURCHASE_WALLETS.ltc)
+      return res.status(503).json({ error: "Purchase system is not configured yet." });
+    res.json({ wallets: PURCHASE_WALLETS, prices: PURCHASE_PRICES });
+  });
+
+  // POST /api/purchase/verify — verify on-chain TX and create account
+  app.post("/api/purchase/verify", async (req, res) => {
+    const { txHash, coin, plan } = req.body || {};
+    if (!txHash || !coin || !plan)
+      return res.status(400).json({ error: "txHash, coin, and plan are required." });
+    if (!["sol", "ltc"].includes(coin))
+      return res.status(400).json({ error: "Invalid coin. Accepted: sol, ltc." });
+    if (!["small", "mid", "high"].includes(plan))
+      return res.status(400).json({ error: "Invalid plan. Accepted: small, mid, high." });
+
+    const hash   = String(txHash).trim();
+    const wallet = PURCHASE_WALLETS[coin];
+    const price  = PURCHASE_PRICES[plan][coin];
+
+    if (!wallet) return res.status(503).json({ error: "That payment coin is not configured on this server." });
+    if (!price || price <= 0) return res.status(503).json({ error: "Price for that plan/coin is not configured." });
+    if (isTxUsed(hash)) return res.status(409).json({ error: "This transaction has already been used to purchase access." });
+
+    try {
+      const result = coin === "sol"
+        ? await verifySolTx(hash, wallet, price)
+        : await verifyLtcTx(hash, wallet, price);
+      if (!result.ok) return res.status(400).json({ error: result.error });
+    } catch (e) {
+      console.error("[purchase] Verification error:", e.message);
+      return res.status(502).json({ error: "Could not reach the blockchain API. Please try again shortly." });
+    }
+
+    // Mark TX as used before creating the account (safe ordering)
+    markTxUsed(hash);
+
+    const suffix      = crypto.randomBytes(5).toString("hex");
+    const username    = `buyer_${suffix}`;
+    const rawPassword = crypto.randomBytes(10).toString("hex");
+    const passHash    = await bcrypt.hash(rawPassword, 12);
+
+    const newUser = {
+      id:           Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
+      username,
+      passwordHash: passHash,
+      role:         "viewer",
+      createdAt:    new Date().toISOString(),
+      expiresAt:    null,
+      lockedIp:     null,
+      lockedHwid:   null,
+      ...PLAN_ACCESS[plan],
+    };
+
+    const users = loadUsers();
+    users.push(newUser);
+    saveUsers(users);
+
+    console.log(`[purchase] New account created: ${username} (plan=${plan}, coin=${coin})`);
+    res.json({ ok: true, username: newUser.username, password: rawPassword, plan });
+  });
+
   // ─── static files ────────────────────────────────────────────────────────────
   app.use(express.static(path.join(__dirname, "public")));
   
