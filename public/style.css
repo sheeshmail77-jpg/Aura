@@ -1080,6 +1080,11 @@
 ══════════════════════════════════════════════════════════════════════════════ */
 .purchase-modal-card {
   max-width: 680px;
+  overflow-y: auto;        /* allow scrolling when step content exceeds viewport */
+}
+/* prevent step bodies from being clipped */
+.purchase-modal-card .pu-step-body {
+  overflow-y: auto;
 }
 
 .purchase-plans {
