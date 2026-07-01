@@ -1172,47 +1172,6 @@
     if (entry.joinLink) { join.href = entry.joinLink; }
     else                { join.classList.add("disabled"); join.removeAttribute("href"); }
 
-    // ── Copy Script button ───────────────────────────────────────────────────
-    // Copies the full esp.lua script with TARGET_PLAYER and TARGET_ANIMALS
-    // injected from this log entry — ready to paste straight into an executor.
-    const copyScriptBtn   = node.querySelector(".copy-script-btn");
-    const copyScriptLabel = node.querySelector(".copy-script-label");
-    copyScriptBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      const flash = (ok) => {
-        copyScriptLabel.textContent = ok ? "Copied!" : "Failed";
-        copyScriptBtn.classList.add(ok ? "copied" : "failed");
-        setTimeout(() => {
-          copyScriptLabel.textContent = "Copy Script";
-          copyScriptBtn.classList.remove("copied", "failed");
-        }, 1400);
-      };
-
-      // Escape values for Lua string literals
-      const escapedOwner = owner.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-      const animalLines  = animals.map(a => {
-        const n = a.name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-        const parts = [`  "${n}"`];
-        if (a.mutation && !isNormal(a.mutation)) parts.push(`-- ${a.mutation}`);
-        if (a.generation) parts.push(`-- ${a.generation}`);
-        return parts.join(" ");
-      });
-      const animalTable = "{\n" + animalLines.join(",\n") + "\n}";
-
-      // Full esp.lua with the two config lines replaced
-      const script = ESP_TEMPLATE
-        .replace('local TARGET_PLAYER  = ""', `local TARGET_PLAYER  = "${escapedOwner}"`)
-        .replace("local TARGET_ANIMALS = {}", `local TARGET_ANIMALS = ${animalTable}`);
-
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(script).then(() => flash(true)).catch(() => fallbackCopy(script, () => flash(true)));
-      } else {
-        fallbackCopy(script, () => flash(true));
-      }
-    });
-  
     // ── Info button ──────────────────────────────────────────────────────────
     node.querySelector(".info-btn-mini").addEventListener("click", e => {
       e.preventDefault();
