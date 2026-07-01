@@ -1948,15 +1948,22 @@ end)`;
   }
 
   // ── fetch config (prices + wallet addresses) ──────────────────────────────
+  let configLoading = false;
   async function loadConfig() {
+    if (configLoading) return;
+    configLoading = true;
     try {
       const r = await fetch("/api/purchase/config");
       if (!r.ok) throw new Error("not configured");
       config = await r.json();
     } catch (_) {
       config = null;
+    } finally {
+      configLoading = false;
     }
   }
+  // Eager load so prices are ready before the user opens the modal
+  loadConfig();
 
   // ── open / close ──────────────────────────────────────────────────────────
   function openModal() {
@@ -1965,7 +1972,7 @@ end)`;
     verifyError.hidden = true;
     txHashInput.value  = "";
     overlay.removeAttribute("hidden");
-    if (!config) loadConfig(); // lazy-load prices
+    if (!config) loadConfig(); // retry if eager load failed
   }
   function closeModal() { overlay.setAttribute("hidden", ""); }
 
@@ -2008,12 +2015,22 @@ end)`;
   });
 
   // ── Step 2: coin selection ─────────────────────────────────────────────
+  const coinErrorEl = document.getElementById("puCoinError");
   step2El.querySelectorAll(".pu-coin-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       if (btn.disabled) return;
       selCoin = btn.dataset.coin;
 
-      if (!config) { showStep(1); return; }
+      // If config still null, try one more time before giving up
+      if (!config) {
+        await loadConfig();
+      }
+      if (!config) {
+        coinErrorEl.textContent = "Could not load pricing info. Check that wallet addresses and prices are set in .env, then refresh.";
+        coinErrorEl.hidden = false;
+        return;
+      }
+      coinErrorEl.hidden = true;
 
       const price  = config.prices[selPlan][selCoin];
       const wallet = config.wallets[selCoin];
