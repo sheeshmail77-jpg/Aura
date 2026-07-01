@@ -936,50 +936,103 @@
   });
   
   // ═══════════════════════════════════════════════════════════════════════════════
-  // PLAYER ONLINE TRACKER
-  // A player is considered "online" when they appear in a log within the last
-  // ONLINE_THRESHOLD_MS (5 minutes). Status dots auto-update every 30 seconds.
+  // PLAYER ONLINE TRACKER  (real Roblox presence — green = in a game)
+  // Polls /api/presence every 30 s with the Roblox user IDs currently visible
+  // in the feed.  userPresenceType 2 = InGame (green), anything else = red.
   // ═══════════════════════════════════════════════════════════════════════════════
-  const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
-  // Map<lowerCaseUsername, { lastSeenAt: number, ownerId: string|null }>
+  // Map<lowerCaseUsername, { ownerId: string|null, lastSeenAt: number }>
   const playerTracker = new Map();
 
-  /** Update or insert a player's last-seen timestamp. */
+  // Map<userId (string), presenceType (number)> — latest result from Roblox
+  const presenceByUserId = new Map();
+
+  /** Store a player's Roblox user ID (and last-seen time) when a log arrives. */
   function trackPlayer(owner, ownerId, when) {
     if (!owner) return;
     const key      = owner.toLowerCase();
     const existing = playerTracker.get(key);
     if (!existing || when > existing.lastSeenAt) {
-      playerTracker.set(key, { lastSeenAt: when, ownerId: ownerId || null });
+      playerTracker.set(key, { ownerId: ownerId ? String(ownerId) : null, lastSeenAt: when });
     }
   }
 
-  /** Compute online/offline state for one player. */
+  /**
+   * Compute online/offline state for one player.
+   * Priority: real Roblox presence (if we have an ownerId + a cached result).
+   * presenceType 2 = InGame → "online".  All others → "offline".
+   */
   function playerOnlineState(owner) {
     const info = playerTracker.get((owner || "").toLowerCase());
     if (!info) return { status: "unknown", info: null };
-    const online = Date.now() - info.lastSeenAt < ONLINE_THRESHOLD_MS;
-    return { status: online ? "online" : "offline", info };
+
+    const uid = info.ownerId;
+    if (uid && presenceByUserId.has(uid)) {
+      const type   = presenceByUserId.get(uid);
+      const online = type === 2; // 2 = InGame
+      return { status: online ? "online" : "offline", info };
+    }
+
+    // No presence data yet — show unknown until first poll completes
+    return { status: "unknown", info };
   }
 
   /** Refresh the class + tooltip of a single status dot element. */
   function refreshStatusDot(dot) {
-    const owner = dot.dataset.player;
+    const owner            = dot.dataset.player;
     const { status, info } = playerOnlineState(owner);
     dot.className = "player-status " + status;
     if (status === "online") {
-      dot.title = "🟢 Online";
-    } else if (status === "offline" && info) {
-      dot.title = "🔴 Last seen " + timeAgo(info.lastSeenAt);
+      dot.title = "🟢 In a Roblox game";
+    } else if (status === "offline") {
+      dot.title = "🔴 Not in a game";
     } else {
-      dot.title = "Status unknown";
+      dot.title = "Checking…";
     }
   }
 
-  /** Walk every status dot in the DOM and refresh it. Called on a 30s interval. */
+  /** Walk every status dot in the DOM and refresh it from cached presence data. */
   function updateAllStatusDots() {
     document.querySelectorAll(".player-status[data-player]").forEach(refreshStatusDot);
+  }
+
+  /**
+   * Collect all Roblox user IDs currently visible in the feed, call
+   * /api/presence, store the results, then refresh every dot.
+   * Called on the 30s interval (and once immediately when the app starts).
+   */
+  async function pollPresence() {
+    // Gather unique numeric userIds from playerTracker
+    const userIds = [];
+    const seen    = new Set();
+    for (const [, info] of playerTracker) {
+      const uid = info.ownerId;
+      if (uid && !seen.has(uid) && /^\d+$/.test(uid)) {
+        seen.add(uid);
+        userIds.push(Number(uid));
+      }
+    }
+    if (userIds.length === 0) return;
+
+    try {
+      const res  = await apiFetch("/api/presence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ userIds }),
+      });
+      if (!res.ok) return; // silently skip on server error
+      const data = await res.json();
+      // data.presences is { [userId]: presenceType }
+      if (data && data.presences) {
+        for (const [uid, type] of Object.entries(data.presences)) {
+          presenceByUserId.set(String(uid), type);
+        }
+      }
+    } catch (_) {
+      // network error — keep old values, dots stay as-is
+    }
+
+    updateAllStatusDots();
   }
 
   // ═══════════════════════════════════════════════════════════════════════════════
@@ -1354,6 +1407,8 @@
       const data = await res.json();
       (data.logs || []).slice().reverse().forEach(e => addEntry(e, false));
       updateStats(data.stats);
+      // Kick off a presence poll right after logs load so dots appear immediately
+      pollPresence();
     } catch (_) {}
   }
   
@@ -1397,6 +1452,7 @@
     for (const { el } of items.values()) el.remove();
     items.clear();
     playerTracker.clear();
+    presenceByUserId.clear();
     setCounts();
     updateStats({ total: 0, og: 0, dragon: 0, small: 0 });
     setConn("connecting");
@@ -1409,8 +1465,9 @@
     loadSnapshot();
     connect();
     timerTick  = setInterval(tickTimers, 1000);
-    // Refresh online/offline status dots every 30 seconds
-    statusTick = setInterval(updateAllStatusDots, 30000);
+    // Poll real Roblox presence every 30 s; kick off an immediate first poll
+    statusTick = setInterval(pollPresence, 30000);
+    pollPresence();
   }
 
 // ═══════════════════════════════════════════════════════════════════════════════
