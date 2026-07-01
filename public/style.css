@@ -835,17 +835,6 @@
 
   .card-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
-  .copy-script-btn {
-    display: flex; align-items: center; gap: 5px;
-    padding: 5px 10px; border-radius: 8px;
-    background: rgba(255,255,255,0.06); border: 1px solid var(--border);
-    color: var(--muted); font-size: 11px; font-weight: 700;
-    font-family: inherit; cursor: pointer; white-space: nowrap;
-    transition: background 0.12s, color 0.12s, border-color 0.12s;
-  }
-  .copy-script-btn:hover { background: rgba(255,255,255,0.11); color: var(--text); }
-  .copy-script-btn.copied { background: rgba(75,224,138,0.12); border-color: rgba(75,224,138,0.35); color: #4be08a; }
-  .copy-script-btn.failed { background: rgba(255,80,80,0.1);   border-color: rgba(255,80,80,0.3);   color: #ff7c7c; }
 
   .info-btn-mini {
     display: inline-flex; align-items: center; justify-content: center;
