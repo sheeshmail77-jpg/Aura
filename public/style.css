@@ -1047,3 +1047,318 @@
   gap: 10px;
   margin-top: 20px;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   PURCHASE BUTTON
+══════════════════════════════════════════════════════════════════════════════ */
+.btn-purchase {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #2ee37a, #1fbf6a);
+  color: #031a0d;
+  border: none;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 4px 16px rgba(31, 191, 106, 0.35);
+  transition: transform 0.12s, filter 0.12s, box-shadow 0.12s;
+  white-space: nowrap;
+}
+.btn-purchase:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: 0 6px 22px rgba(31, 191, 106, 0.45);
+}
+.btn-purchase:active { transform: translateY(0); }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   PURCHASE MODAL
+══════════════════════════════════════════════════════════════════════════════ */
+.purchase-modal-card {
+  max-width: 680px;
+}
+
+.purchase-plans {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  padding: 20px 24px 24px;
+}
+
+@media (max-width: 640px) {
+  .purchase-plans { grid-template-columns: 1fr; }
+}
+
+.plan-card {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  padding: 20px 16px 16px;
+  position: relative;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.plan-card:hover { transform: translateY(-2px); }
+
+.plan-card-small  { border-color: rgba(56,208,255,0.25); }
+.plan-card-mid    { border-color: rgba(255,77,77,0.25); }
+.plan-card-high   {
+  border-color: rgba(255,180,60,0.45);
+  background: rgba(255,180,60,0.04);
+}
+
+.plan-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  width: fit-content;
+}
+.plan-badge-small { background: rgba(56,208,255,0.15); color: var(--small); border: 1px solid rgba(56,208,255,0.35); }
+.plan-badge-mid   { background: rgba(255,77,77,0.15);  color: var(--dragon); border: 1px solid rgba(255,77,77,0.35); }
+.plan-badge-high  { background: rgba(255,180,60,0.15); color: var(--og);    border: 1px solid rgba(255,180,60,0.4); }
+
+.plan-popular-tag {
+  position: absolute;
+  top: -11px; left: 50%; transform: translateX(-50%);
+  background: linear-gradient(135deg, var(--og), var(--og-2));
+  color: #0a0a0f;
+  font-size: 10px; font-weight: 900;
+  padding: 3px 12px; border-radius: 999px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.plan-name {
+  font-size: 17px;
+  font-weight: 900;
+  margin: 0 0 4px;
+  letter-spacing: -0.2px;
+}
+.plan-name-small  { color: var(--small); }
+.plan-name-mid    { color: var(--dragon); }
+.plan-name-high   { color: var(--og); }
+
+.plan-desc {
+  font-size: 12px;
+  color: var(--faint);
+  font-weight: 500;
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+.plan-features {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1;
+}
+.plan-feature {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.plan-feature-check {
+  flex-shrink: 0;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 9px;
+}
+.plan-check-small { background: rgba(56,208,255,0.18); color: var(--small); }
+.plan-check-mid   { background: rgba(255,77,77,0.18);  color: var(--dragon); }
+.plan-check-high  { background: rgba(255,180,60,0.2);  color: var(--og); }
+
+.plan-feature-off {
+  color: var(--faint);
+  opacity: 0.45;
+}
+.plan-feature-off .plan-feature-check {
+  background: rgba(255,255,255,0.05);
+  color: var(--faint);
+}
+
+.plan-buy-btn {
+  width: 100%;
+  padding: 11px;
+  border: none; border-radius: 10px;
+  font-size: 13.5px; font-weight: 800;
+  cursor: pointer; font-family: inherit;
+  transition: transform 0.12s, filter 0.12s;
+}
+.plan-buy-btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
+.plan-buy-btn:active { transform: translateY(0); }
+
+.plan-buy-small {
+  background: rgba(56,208,255,0.12);
+  border: 1px solid rgba(56,208,255,0.4);
+  color: var(--small);
+}
+.plan-buy-mid {
+  background: rgba(255,77,77,0.12);
+  border: 1px solid rgba(255,77,77,0.4);
+  color: var(--dragon);
+}
+.plan-buy-high {
+  background: linear-gradient(135deg, var(--og), var(--og-2));
+  color: #0a0a0f;
+  box-shadow: 0 4px 14px rgba(255,140,0,0.3);
+  border: none;
+}
+
+.purchase-footer {
+  padding: 0 24px 18px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   PURCHASE MODAL — MULTI-STEP FLOW
+══════════════════════════════════════════════════════════════════════════════ */
+
+/* Step indicator bar */
+.pu-steps {
+  display: flex; align-items: center;
+  padding: 14px 24px 0;
+  gap: 0;
+}
+.pu-step {
+  display: flex; align-items: center; gap: 7px; flex-shrink: 0;
+}
+.pu-step-line {
+  flex: 1; height: 2px;
+  background: var(--border-strong);
+  margin: 0 10px;
+}
+.pu-step-num {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(255,255,255,0.08); border: 1px solid var(--border-strong);
+  color: var(--faint); font-size: 12px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background 0.2s, color 0.2s;
+}
+.pu-step-label { font-size: 12px; font-weight: 600; color: var(--faint); transition: color 0.2s; }
+.pu-step-active .pu-step-num {
+  background: linear-gradient(135deg, #2ee37a, #1fbf6a);
+  border-color: transparent; color: #031a0d;
+}
+.pu-step-active .pu-step-label { color: var(--text); }
+
+/* Step body */
+.pu-step-body {
+  padding: 18px 24px 20px;
+  animation: puFadeIn 0.18s ease;
+}
+@keyframes puFadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Step 2 — coin selection */
+.pu-desc {
+  font-size: 13.5px; color: var(--muted); margin: 0 0 16px; line-height: 1.5;
+}
+.pu-coin-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px;
+}
+.pu-coin-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 18px 12px;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border-strong);
+  border-radius: 14px; cursor: pointer; font-family: inherit;
+  transition: border-color 0.15s, background 0.15s, transform 0.12s;
+}
+.pu-coin-btn:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.25); transform: translateY(-1px); }
+.pu-coin-btn[data-coin="sol"]:hover { border-color: rgba(153,69,255,0.5); }
+.pu-coin-btn[data-coin="ltc"]:hover { border-color: rgba(56,208,255,0.45); }
+.pu-coin-icon { font-size: 26px; line-height: 1; color: var(--text); }
+.pu-coin-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.pu-coin-price { font-size: 14px; font-weight: 900; color: var(--og); }
+
+/* Step 3 — payment summary */
+.pu-pay-summary {
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+  margin-bottom: 14px;
+}
+.pu-pay-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.pu-pay-label { font-size: 11.5px; font-weight: 700; color: var(--faint); min-width: 60px; }
+.pu-pay-val   { font-size: 13px; font-weight: 700; color: var(--text); }
+.pu-pay-amount { font-size: 16px; font-weight: 900; color: var(--og); }
+.pu-pay-addr-row { align-items: center; }
+.pu-pay-addr {
+  font-size: 11.5px; font-weight: 600; color: var(--muted);
+  font-family: monospace; word-break: break-all; flex: 1;
+}
+.pu-copy-addr {
+  flex-shrink: 0; padding: 4px 8px; border-radius: 6px;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  color: var(--faint); cursor: pointer; transition: background 0.12s, color 0.12s;
+}
+.pu-copy-addr:hover { background: rgba(255,255,255,0.12); color: var(--text); }
+.pu-copy-addr.copied { background: rgba(46,227,122,0.14); color: #4be08a; border-color: rgba(46,227,122,0.3); }
+
+.pu-warn {
+  font-size: 12px; color: #ffb347; background: rgba(255,179,71,0.08);
+  border: 1px solid rgba(255,179,71,0.25); border-radius: 8px;
+  padding: 9px 12px; margin: 0 0 14px; line-height: 1.5;
+}
+
+/* Actions row */
+.pu-actions {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-top: 16px;
+}
+
+/* Step 4 — success */
+.pu-success-icon {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: linear-gradient(135deg, #2ee37a, #1fbf6a);
+  color: #031a0d; font-size: 24px; font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+  margin: 4px auto 14px;
+}
+.pu-success-title {
+  text-align: center; font-size: 18px; font-weight: 900; margin: 0 0 6px;
+}
+.pu-success-sub {
+  text-align: center; font-size: 13px; color: var(--muted); margin: 0 0 18px; line-height: 1.5;
+}
+.pu-creds {
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 16px;
+  display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px;
+}
+.pu-cred-row {
+  display: flex; align-items: center; gap: 10px;
+}
+.pu-cred-label { font-size: 11.5px; font-weight: 700; color: var(--faint); min-width: 68px; }
+.pu-cred-val   { font-size: 13px; font-weight: 700; color: var(--text); font-family: monospace; flex: 1; word-break: break-all; }
+.pu-copy-cred {
+  flex-shrink: 0; padding: 4px 8px; border-radius: 6px;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  color: var(--faint); cursor: pointer; transition: background 0.12s, color 0.12s;
+}
+.pu-copy-cred:hover { background: rgba(255,255,255,0.12); color: var(--text); }
+.pu-copy-cred.copied { background: rgba(46,227,122,0.14); color: #4be08a; border-color: rgba(46,227,122,0.3); }
+.pu-creds-warn {
+  text-align: center; font-size: 12px; color: #ffb347; margin: 0 0 4px;
+}
