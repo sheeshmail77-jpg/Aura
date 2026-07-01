@@ -1005,7 +1005,94 @@
   });
   
   app.get("/api/health", (req, res) => res.json({ ok: true, uptime: process.uptime() }));
-  
+
+  // ─── Roblox presence proxy ─────────────────────────────────────────────────────
+  // POST /api/presence  { userIds: [number, ...] }
+  // Calls https://presence.roblox.com/v1/presence/users with the server's
+  // ROBLOSECURITY cookie.  Returns { presences: { [userId]: presenceType } }
+  // presenceType: 0=Offline 1=Online(website) 2=InGame 3=InStudio
+  // Requires ROBLOX_COOKIE in .env.  If missing, returns all as type 0.
+  const ROBLOX_PRESENCE_URL = "https://presence.roblox.com/v1/presence/users";
+
+  // Simple in-memory cache so we don't hammer Roblox on every poll.
+  // Cache entry: { data: {...}, expiresAt: number }
+  const presenceCache = new Map(); // key = sorted userIds joined
+  const PRESENCE_CACHE_MS = 25 * 1000; // 25s — slightly less than the 30s client poll
+
+  app.post("/api/presence", requireAuth, (req, res) => {
+    const cookie = (process.env.ROBLOX_COOKIE || "").trim();
+    const rawIds = Array.isArray(req.body && req.body.userIds) ? req.body.userIds : [];
+    // Keep only valid positive integers, cap at 100 per request (Roblox limit)
+    const userIds = rawIds
+      .map(id => parseInt(id, 10))
+      .filter(id => Number.isFinite(id) && id > 0)
+      .slice(0, 100);
+
+    if (userIds.length === 0) return res.json({ presences: {} });
+
+    // Check cache
+    const cacheKey = [...userIds].sort((a, b) => a - b).join(",");
+    const cached = presenceCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return res.json({ presences: cached.data });
+
+    if (!cookie) {
+      // No cookie configured — return all as offline
+      const presences = {};
+      for (const id of userIds) presences[id] = 0;
+      return res.json({ presences });
+    }
+
+    const body = JSON.stringify({ userIds });
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type":  "application/json",
+        "Content-Length": Buffer.byteLength(body),
+        "Cookie":        `.ROBLOSECURITY=${cookie}`,
+        "User-Agent":    "Mozilla/5.0",
+        "Accept":        "application/json",
+      },
+    };
+
+    const proxyReq = https.request(ROBLOX_PRESENCE_URL, options, upstream => {
+      let raw = "";
+      upstream.on("data", chunk => { raw += chunk; });
+      upstream.on("end", () => {
+        try {
+          const parsed = JSON.parse(raw);
+          const presences = {};
+          const list = parsed.userPresences || [];
+          for (const p of list) {
+            if (p && p.userId) presences[p.userId] = p.userPresenceType ?? 0;
+          }
+          // Fill any ids Roblox didn't return (shouldn't happen but be safe)
+          for (const id of userIds) {
+            if (presences[id] === undefined) presences[id] = 0;
+          }
+          // Store in cache
+          presenceCache.set(cacheKey, { data: presences, expiresAt: Date.now() + PRESENCE_CACHE_MS });
+          res.json({ presences });
+        } catch (e) {
+          console.error("[presence] parse error:", e.message, raw.slice(0, 200));
+          res.status(502).json({ error: "bad_response" });
+        }
+      });
+    });
+
+    proxyReq.on("error", err => {
+      console.error("[presence] request error:", err.message);
+      res.status(502).json({ error: "upstream_error" });
+    });
+
+    proxyReq.setTimeout(8000, () => {
+      proxyReq.destroy();
+      res.status(504).json({ error: "timeout" });
+    });
+
+    proxyReq.write(body);
+    proxyReq.end();
+  });
+
   // ─── image proxy (public) ─────────────────────────────────────────────────────
 
   // Cache resolved Fandom page-image URLs so we don't hit their API on every request.
