@@ -1,367 +1,6 @@
 "use strict";
 
   // ═══════════════════════════════════════════════════════════════════════════════
-  // ESP SCRIPT TEMPLATE
-  // Full esp.lua embedded here — Copy Script button injects TARGET_PLAYER /
-  // TARGET_ANIMALS and copies the whole thing. No server request needed.
-  // ═══════════════════════════════════════════════════════════════════════════════
-  const ESP_TEMPLATE = `local Players   = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-
--- ═══════════════════════════════════════════════════════════════════════════
--- TARGETED CONFIG — injected by the website Copy Script button
--- ═══════════════════════════════════════════════════════════════════════════
-local TARGET_PLAYER  = ""
-local TARGET_ANIMALS = {}
-
--- ═══════════════════════════════════════════════════════════════════════════
--- GENERAL SETTINGS
--- ═══════════════════════════════════════════════════════════════════════════
-local REFRESH_RATE   = 1
-local IGNORE_MY_PLOT = false
-local SHOW_PLOT      = true
-
-local DRAGON_COLOR = Color3.fromRGB(255,  50,  50)
-local OG_COLOR     = Color3.fromRGB(255, 170,   0)
-local SMALL_COLOR  = Color3.fromRGB(0,   210, 255)
-local PLOT_COLOR   = Color3.fromRGB(0,   255, 120)
-
-local ANIMAL_FILL_TRANSPARENCY    = 0.10
-local ANIMAL_OUTLINE_TRANSPARENCY = 0
-local PLOT_FILL_TRANSPARENCY      = 0.85
-local PLOT_OUTLINE_TRANSPARENCY   = 0
-
-local LABEL_SIZE   = UDim2.new(0, 160, 0, 36)
-local LABEL_OFFSET = Vector3.new(0, 4, 0)
-local TEXT_SIZE    = 12
-
-local MUTATION_COLORS = {
-    ["prismatic"]  = Color3.fromRGB(255, 80, 255),
-    ["rainbow"]    = Color3.fromRGB(255, 80, 255),
-    ["shiny"]      = Color3.fromRGB(255, 230, 50),
-    ["golden"]     = Color3.fromRGB(255, 200, 0),
-    ["gold"]       = Color3.fromRGB(255, 200, 0),
-    ["corrupted"]  = Color3.fromRGB(160, 0, 255),
-    ["frozen"]     = Color3.fromRGB(100, 200, 255),
-    ["crystal"]    = Color3.fromRGB(100, 220, 255),
-    ["dark"]       = Color3.fromRGB(180, 80, 255),
-    ["normal"]     = Color3.fromRGB(200, 200, 200),
-}
-local DEFAULT_MUTATION_COLOR = Color3.fromRGB(255, 255, 255)
-
-local DRAGON_ANIMALS = {
-    ["Dragon Cannelloni"]         = true,
-    ["Hydra Dragon Cannelloni"]   = true,
-    ["Rico Dinero"]               = true,
-    ["Tirilikalika Tirilikalako"] = true,
-    ["Fishino Clownino"]          = true,
-    ["La Supreme Combinasion"]    = true,
-    ["Digi Narwhal"]              = true,
-    ["Kraken"]                    = true,
-    ["Dragon Gingerini"]          = true,
-}
-local BIG_ANIMALS = {
-    ["Strawberry Elephant"] = true,
-    ["Headless Horseman"]   = true,
-    ["Meowl"]               = true,
-    ["John Pork"]           = true,
-    ["Skibidi Toilet"]      = true,
-    ["Elefanto Frigo"]      = true,
-    ["Signore Carapace"]    = true,
-    ["Griffin"]             = true,
-    ["Arcadragon"]          = true,
-}
-local SMALL_ANIMALS = {
-    ["Garama and Madundung"]  = true,
-    ["Capitano Moby"]         = true,
-    ["Burguro and Fryuro"]    = true,
-    ["Rosey and Teddy"]       = true,
-    ["Cash or Card"]          = true,
-    ["Spooky and Pumpky"]     = true,
-    ["Reinito Sleighito"]     = true,
-    ["Fortunu and Cashuru"]   = true,
-    ["Cooki and Milki"]       = true,
-    ["Fragrama and Chocrama"] = true,
-    ["Foxini Lanternini"]     = true,
-    ["La Casa Boo"]           = true,
-    ["Cerberus"]              = true,
-    ["Globa Steppa"]          = true,
-    ["Fragola La La La"]      = true,
-    ["Bunny and Eggy"]        = true,
-    ["Popcuru and Fizzuru"]   = true,
-    ["Duggy Bros"]            = true,
-    ["Dug dug dug"]           = true,
-    ["Ginger Gerat"]          = true,
-    ["Ketupat Bros"]          = true,
-}
-
-local TARGET = {}
-for _, set in ipairs({ DRAGON_ANIMALS, BIG_ANIMALS, SMALL_ANIMALS }) do
-    for name in pairs(set) do TARGET[name] = true end
-end
-
-local ACTIVE_TARGET = TARGET
-if #TARGET_ANIMALS > 0 then
-    ACTIVE_TARGET = {}
-    for _, name in ipairs(TARGET_ANIMALS) do
-        ACTIVE_TARGET[name] = true
-    end
-end
-
-local function tierColor(name)
-    if DRAGON_ANIMALS[name] then return DRAGON_COLOR end
-    if BIG_ANIMALS[name]    then return OG_COLOR end
-    return SMALL_COLOR
-end
-
-local function clean(s)
-    s = tostring(s):gsub("<[^>]->", "")
-    return (s:gsub("^%s+", ""):gsub("%s+$", ""))
-end
-
-local function isMyPlot(plot)
-    local sign = plot:FindFirstChild("PlotSign")
-    return sign and sign:FindFirstChild("YourBase") and sign.YourBase.Enabled or false
-end
-
--- Extract the owner username from a plot's PlotSign.
--- The sign text is usually "PlayerName's Base" — strip the suffix.
-local function plotOwnerName(plot)
-    local sign = plot:FindFirstChild("PlotSign") or plot:FindFirstChild("PlotSign", true)
-    if not sign then return nil end
-    local sg    = sign:FindFirstChild("SurfaceGui")
-    local frame = sg and sg:FindFirstChild("Frame")
-    local label = frame and frame:FindFirstChild("TextLabel")
-    local text
-    if label and label.Text and label.Text ~= "" then
-        text = label.Text
-    else
-        for _, d in ipairs(sign:GetDescendants()) do
-            if d:IsA("TextLabel") and d.Text and d.Text ~= "" then
-                text = d.Text; break
-            end
-        end
-    end
-    if not text or text == "" then return nil end
-    if text:lower():find("empty") then return nil end
-    local name = text:gsub("'s [Bb]ase$", ""):gsub("[Bb]ase [Oo]f%s+", ""):gsub("%s+$", "")
-    return name ~= "" and name or nil
-end
-
-local function isTargetPlot(plot)
-    if TARGET_PLAYER == "" then return true end
-    local ownerName = plotOwnerName(plot)
-    if not ownerName then return false end
-    return ownerName:lower() == TARGET_PLAYER:lower()
-end
-
-local MUTATION_KEYS = { "Mutation", "mutation", "MutationType", "Rarity" }
-
-local function findMutation(model)
-    for _, key in ipairs(MUTATION_KEYS) do
-        local v = model:GetAttribute(key)
-        if v and tostring(v) ~= "" then return tostring(v) end
-    end
-    for _, key in ipairs(MUTATION_KEYS) do
-        local sv = model:FindFirstChild(key, true)
-        if sv and (sv:IsA("StringValue") or sv:IsA("IntValue")) then
-            local s = tostring(sv.Value)
-            if s ~= "" and s ~= "0" then return s end
-        end
-    end
-    for _, d in ipairs(model:GetDescendants()) do
-        if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text and d.Text ~= "" then
-            local t = clean(d.Text)
-            local low = t:lower()
-            if #t < 40 and not TARGET[t] then
-                for kw in pairs(MUTATION_COLORS) do
-                    if low:find(kw, 1, true) then return t end
-                end
-            end
-        end
-    end
-    return nil
-end
-
-local function mutationColor(mutStr)
-    if not mutStr then return DEFAULT_MUTATION_COLOR end
-    local low = mutStr:lower()
-    for kw, col in pairs(MUTATION_COLORS) do
-        if low:find(kw, 1, true) then return col end
-    end
-    return DEFAULT_MUTATION_COLOR
-end
-
-local guiParent = (gethui and gethui()) or game:GetService("CoreGui")
-local existing  = guiParent:FindFirstChild("AnimalESP")
-if existing then existing:Destroy() end
-
-local espFolder = Instance.new("Folder")
-espFolder.Name   = "AnimalESP"
-espFolder.Parent = guiParent
-
-local animalHighlights = {}
-local plotHighlights   = {}
-local billboards       = {}
-
-local function getRootPart(model)
-    return model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
-end
-
-local function makeHighlight(adornee, fillColor, fillT, outlineColor, outlineT)
-    local h = Instance.new("Highlight")
-    h.Adornee             = adornee
-    h.FillColor           = fillColor
-    h.FillTransparency    = fillT
-    h.OutlineColor        = outlineColor
-    h.OutlineTransparency = outlineT or 0
-    h.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
-    h.Parent              = espFolder
-    return h
-end
-
-local function makeBillboard(model, animalName, mutStr)
-    local root = getRootPart(model)
-    if not root then return nil end
-
-    local bb = Instance.new("BillboardGui")
-    bb.Adornee         = root
-    bb.Size            = LABEL_SIZE
-    bb.StudsOffset     = LABEL_OFFSET
-    bb.AlwaysOnTop     = true
-    bb.MaxDistance     = 500
-    bb.ResetOnSpawn    = false
-    bb.Parent          = espFolder
-
-    local frame = Instance.new("Frame")
-    frame.Size                   = UDim2.fromScale(1, 1)
-    frame.BackgroundColor3       = Color3.fromRGB(0, 0, 0)
-    frame.BackgroundTransparency = 0.45
-    frame.BorderSizePixel        = 0
-    frame.Parent                 = bb
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 5)
-    corner.Parent       = frame
-
-    local nameLabel = Instance.new("TextLabel")
-    nameLabel.Size                   = UDim2.new(1, -4, 0.55, 0)
-    nameLabel.Position               = UDim2.new(0, 2, 0, 1)
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.TextColor3             = tierColor(animalName)
-    nameLabel.TextStrokeColor3       = Color3.new(0, 0, 0)
-    nameLabel.TextStrokeTransparency = 0.3
-    nameLabel.Font                   = Enum.Font.GothamBold
-    nameLabel.TextSize               = TEXT_SIZE
-    nameLabel.TextScaled             = false
-    nameLabel.TextXAlignment         = Enum.TextXAlignment.Center
-    nameLabel.Text                   = animalName
-    nameLabel.Parent                 = frame
-
-    local mutLabel = Instance.new("TextLabel")
-    mutLabel.Size                   = UDim2.new(1, -4, 0.42, 0)
-    mutLabel.Position               = UDim2.new(0, 2, 0.55, 0)
-    mutLabel.BackgroundTransparency = 1
-    mutLabel.TextColor3             = mutationColor(mutStr)
-    mutLabel.TextStrokeColor3       = Color3.new(0, 0, 0)
-    mutLabel.TextStrokeTransparency = 0.3
-    mutLabel.Font                   = Enum.Font.GothamSemibold
-    mutLabel.TextSize               = TEXT_SIZE - 1
-    mutLabel.TextScaled             = false
-    mutLabel.TextXAlignment         = Enum.TextXAlignment.Center
-    mutLabel.Text                   = mutStr or "No Mutation"
-    mutLabel.Parent                 = frame
-
-    return bb
-end
-
-local function scanPlot(plot, outAnimals)
-    local found = false
-    for _, d in ipairs(plot:GetDescendants()) do
-        local name
-        if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text and d.Text ~= "" then
-            local t = clean(d.Text)
-            if ACTIVE_TARGET[t] then name = t end
-        elseif d:IsA("Model") and ACTIVE_TARGET[d.Name] then
-            name = d.Name
-        end
-        if name then
-            local model = d:IsA("Model") and d or d:FindFirstAncestorOfClass("Model")
-            if model and model ~= plot and model:IsDescendantOf(plot) then
-                outAnimals[model] = name
-                found = true
-            end
-        end
-    end
-    return found
-end
-
-local function clearAll()
-    for m, h  in pairs(animalHighlights) do h:Destroy();  animalHighlights[m] = nil end
-    for p, h  in pairs(plotHighlights)   do h:Destroy();  plotHighlights[p]   = nil end
-    for m, bb in pairs(billboards)       do bb:Destroy(); billboards[m]        = nil end
-end
-
-local function refresh()
-    local plotsFolder = Workspace:FindFirstChild("Plots")
-    if not plotsFolder then return end
-
-    local curAnimals = {}
-    local curPlots   = {}
-
-    for _, plot in ipairs(plotsFolder:GetChildren()) do
-        if plot:IsA("Model")
-            and not (IGNORE_MY_PLOT and isMyPlot(plot))
-            and isTargetPlot(plot)
-        then
-            if scanPlot(plot, curAnimals) then
-                curPlots[plot] = true
-            end
-        end
-    end
-
-    for model, name in pairs(curAnimals) do
-        if not animalHighlights[model] then
-            local col = tierColor(name)
-            animalHighlights[model] = makeHighlight(model, col, ANIMAL_FILL_TRANSPARENCY, Color3.new(1,1,1), ANIMAL_OUTLINE_TRANSPARENCY)
-        end
-        if not billboards[model] then
-            billboards[model] = makeBillboard(model, name, findMutation(model))
-        end
-    end
-
-    for model, h in pairs(animalHighlights) do
-        if not curAnimals[model] or not model.Parent then
-            h:Destroy(); animalHighlights[model] = nil
-            if billboards[model] then billboards[model]:Destroy(); billboards[model] = nil end
-        end
-    end
-
-    if SHOW_PLOT then
-        for plot in pairs(curPlots) do
-            if not plotHighlights[plot] then
-                plotHighlights[plot] = makeHighlight(plot, PLOT_COLOR, PLOT_FILL_TRANSPARENCY, PLOT_COLOR, PLOT_OUTLINE_TRANSPARENCY)
-            end
-        end
-        for plot, h in pairs(plotHighlights) do
-            if not curPlots[plot] or not plot.Parent then
-                h:Destroy(); plotHighlights[plot] = nil
-            end
-        end
-    else
-        for plot, h in pairs(plotHighlights) do h:Destroy(); plotHighlights[plot] = nil end
-    end
-end
-
-task.spawn(function()
-    while espFolder.Parent do
-        pcall(refresh)
-        task.wait(REFRESH_RATE)
-    end
-    clearAll()
-end)`;
-
-  // ═══════════════════════════════════════════════════════════════════════════════
   // DEVICE ID (used as HWID — generated once per browser, stored in localStorage)
   // ═══════════════════════════════════════════════════════════════════════════════
   function getOrCreateDeviceId() {
@@ -674,6 +313,31 @@ end)`;
       });
     } catch (_) {}
   }
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // TOAST NOTIFICATIONS
+  // ═══════════════════════════════════════════════════════════════════════════════
+  (function initToastContainer() {
+    const el = document.createElement("div");
+    el.className = "toast-container";
+    el.id = "toastContainer";
+    document.body.appendChild(el);
+  })();
+
+  function showToast(title, sub) {
+    const container = document.getElementById("toastContainer");
+    if (!container) return;
+
+    const toast = document.createElement("div");
+    toast.className = "toast";
+    toast.innerHTML = `<span class="toast-title">${title}</span>`
+      + (sub ? `<span class="toast-sub">${sub}</span>` : "");
+
+    container.appendChild(toast);
+
+    // Remove after animation completes (2.6s fade + 0.28s out = ~2.9s)
+    setTimeout(() => toast.remove(), 2950);
+  }
+
   const DatePicker = (() => {
     const el         = document.getElementById("dpPopover");
     let _cb          = null;
@@ -1272,6 +936,53 @@ end)`;
   });
   
   // ═══════════════════════════════════════════════════════════════════════════════
+  // PLAYER ONLINE TRACKER
+  // A player is considered "online" when they appear in a log within the last
+  // ONLINE_THRESHOLD_MS (5 minutes). Status dots auto-update every 30 seconds.
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+
+  // Map<lowerCaseUsername, { lastSeenAt: number, ownerId: string|null }>
+  const playerTracker = new Map();
+
+  /** Update or insert a player's last-seen timestamp. */
+  function trackPlayer(owner, ownerId, when) {
+    if (!owner) return;
+    const key      = owner.toLowerCase();
+    const existing = playerTracker.get(key);
+    if (!existing || when > existing.lastSeenAt) {
+      playerTracker.set(key, { lastSeenAt: when, ownerId: ownerId || null });
+    }
+  }
+
+  /** Compute online/offline state for one player. */
+  function playerOnlineState(owner) {
+    const info = playerTracker.get((owner || "").toLowerCase());
+    if (!info) return { status: "unknown", info: null };
+    const online = Date.now() - info.lastSeenAt < ONLINE_THRESHOLD_MS;
+    return { status: online ? "online" : "offline", info };
+  }
+
+  /** Refresh the class + tooltip of a single status dot element. */
+  function refreshStatusDot(dot) {
+    const owner = dot.dataset.player;
+    const { status, info } = playerOnlineState(owner);
+    dot.className = "player-status " + status;
+    if (status === "online") {
+      dot.title = "🟢 Online";
+    } else if (status === "offline" && info) {
+      dot.title = "🔴 Last seen " + timeAgo(info.lastSeenAt);
+    } else {
+      dot.title = "Status unknown";
+    }
+  }
+
+  /** Walk every status dot in the DOM and refresh it. Called on a 30s interval. */
+  function updateAllStatusDots() {
+    document.querySelectorAll(".player-status[data-player]").forEach(refreshStatusDot);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════
   // MAIN APP (log feed)
   // ═══════════════════════════════════════════════════════════════════════════════
   const DAY_MS       = 24 * 60 * 60 * 1000;
@@ -1298,6 +1009,7 @@ end)`;
   let reconnectTimer = null;
   let pollTimer      = null;
   let timerTick      = null;
+  let statusTick     = null;   // 30-second interval to refresh online/offline dots
   let appRunning     = false;
   
   function feedOf(cat) { return feeds[cat] || feeds.small; }
@@ -1423,6 +1135,13 @@ end)`;
       ? `https://www.roblox.com/users/${entry.ownerId}/profile`
       : `https://www.roblox.com/search/users?keyword=${encodeURIComponent(owner)}`;
     nameEl.title = entry.ownerId ? "Open Roblox profile" : "Search this username on Roblox";
+
+    // ── Player online status dot ─────────────────────────────────────────────
+    const statusDot = document.createElement("span");
+    statusDot.className   = "player-status";
+    statusDot.dataset.player = owner;
+    refreshStatusDot(statusDot);
+    nameEl.insertAdjacentElement("afterend", statusDot);
 
     const copyBtn = node.querySelector(".owner-copy");
     copyBtn.addEventListener("click", (e) => {
@@ -1624,6 +1343,9 @@ end)`;
     const when = entry.loggedAt || entry.receivedAt || Date.now();
     if (Date.now() - when > DAY_MS) return;
 
+    // Keep player tracker up to date so status dots are accurate
+    if (entry.owner) trackPlayer(entry.owner, entry.ownerId, when);
+
     const feed = feedOf(entry.category);
     const { node, agoEl } = buildCard(entry);
     if (isNew) { node.classList.add("flash"); playLogSound(); }
@@ -1712,8 +1434,10 @@ end)`;
     if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     if (pollTimer)      { clearInterval(pollTimer); pollTimer = null; }
     if (timerTick)      { clearInterval(timerTick); timerTick = null; }
+    if (statusTick)     { clearInterval(statusTick); statusTick = null; }
     for (const { el } of items.values()) el.remove();
     items.clear();
+    playerTracker.clear();
     setCounts();
     updateStats({ total: 0, og: 0, dragon: 0, small: 0 });
     setConn("connecting");
@@ -1725,8 +1449,10 @@ end)`;
     setConn("connecting");
     loadSnapshot();
     connect();
-  timerTick = setInterval(tickTimers, 1000);
-}
+    timerTick  = setInterval(tickTimers, 1000);
+    // Refresh online/offline status dots every 30 seconds
+    statusTick = setInterval(updateAllStatusDots, 30000);
+  }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GET ROLE (Discord verification)
@@ -1976,7 +1702,10 @@ end)`;
   }
   function closeModal() { overlay.setAttribute("hidden", ""); }
 
-  purchaseBtn.addEventListener("click", openModal);
+  // Purchase system is disabled — show a "COMING SOON" notice instead of opening the modal
+  purchaseBtn.addEventListener("click", () => {
+    showToast("🚧 COMING SOON", "The purchase system is not available yet.");
+  });
   closeBtn.addEventListener("click", closeModal);
   overlay.addEventListener("click", e => { if (e.target === overlay) closeModal(); });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !overlay.hidden) closeModal(); });
