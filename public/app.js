@@ -1881,3 +1881,42 @@ end)`;
   codeInp.addEventListener("keydown", e => { if (e.key === "Enter") verifyBtn.click(); });
   discordIdInp.addEventListener("keydown", e => { if (e.key === "Enter") sendBtn.click(); });
 })();
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PURCHASE MODAL
+// Opens when the topbar Purchase button is clicked.
+// Each plan buy button shows a simple confirmation message (no payment flow).
+// ═══════════════════════════════════════════════════════════════════════════════
+(() => {
+  const overlay     = document.getElementById("purchaseOverlay");
+  const purchaseBtn = document.getElementById("purchaseBtn");
+  const closeBtn    = document.getElementById("purchaseClose");
+
+  const PLAN_LABELS = {
+    small: "Small Plan — Newbie Highlights",
+    mid:   "Mid Plan — Dragon + Small",
+    high:  "High Plan — Full Access (OG + Dragon + Small)",
+  };
+
+  function openModal()  { overlay.removeAttribute("hidden"); }
+  function closeModal() { overlay.setAttribute("hidden", ""); }
+
+  purchaseBtn.addEventListener("click", openModal);
+  closeBtn.addEventListener("click", closeModal);
+  overlay.addEventListener("click", e => { if (e.target === overlay) closeModal(); });
+
+  // Plan buy buttons — show a prompt/alert with contact info
+  overlay.querySelectorAll(".plan-buy-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const plan = btn.dataset.plan;
+      const label = PLAN_LABELS[plan] || plan;
+      // Replace the alert below with your own payment link or DM flow as needed
+      alert(`You selected: ${label}\n\nPlease contact an admin on Discord to complete your purchase and have your access activated.`);
+    });
+  });
+
+  // Close on Escape key
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && !overlay.hidden) closeModal();
+  });
+})();
