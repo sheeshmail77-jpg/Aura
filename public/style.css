@@ -1269,3 +1269,82 @@ body::before {
   background: rgba(46,227,122,0.07); border: 1px solid rgba(46,227,122,0.22);
   border-radius: 11px; padding: 11px 14px;
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   FOOTER
+════════════════════════════════════════════════════════════════════════════ */
+.foot {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 24px; border-top: 1px solid var(--border);
+  font-size: 12px; color: var(--faint); font-weight: 500;
+  position: relative; z-index: 1;
+}
+.foot .dot { opacity: 0.5; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   PURCHASE MODAL — step body + plan cards (legacy selectors kept)
+════════════════════════════════════════════════════════════════════════════ */
+.pu-step-body { padding: 0 24px 24px; display: flex; flex-direction: column; gap: 16px; }
+.purchase-plans { display: flex; flex-direction: column; gap: 10px; }
+
+/* step indicator lines */
+.pu-step-line { flex: 1; height: 2px; background: var(--border); border-radius: 2px; }
+
+/* plan badges */
+.plan-badge {
+  font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 7px;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.plan-badge-small { background: rgba(34,232,255,0.1);  border: 1px solid rgba(34,232,255,0.26); color: var(--small); }
+.plan-badge-mid   { background: rgba(255,185,64,0.12); border: 1px solid rgba(255,185,64,0.3);  color: var(--og); }
+.plan-badge-high  { background: rgba(157,100,255,0.12); border: 1px solid rgba(157,100,255,0.3); color: var(--purple); }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   ADMIN MODAL — field overrides that use .admin-input / .admin-select
+════════════════════════════════════════════════════════════════════════════ */
+.field input.admin-input, .field select.admin-select,
+.admin-input, .admin-select {
+  width: 100%; padding: 10px 13px;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border-strong);
+  border-radius: 11px; color: var(--text);
+  font-size: 13px; font-family: inherit; font-weight: 500;
+  outline: none; transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.admin-input:focus, .admin-select:focus {
+  border-color: rgba(255,185,64,0.45);
+  background: rgba(255,255,255,0.06);
+  box-shadow: 0 0 0 3px rgba(255,140,0,0.08);
+}
+.admin-select {
+  cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a84a8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; background-size: 12px;
+  padding-right: 34px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MODAL — info modal body wrapper
+════════════════════════════════════════════════════════════════════════════ */
+.info-modal-body {
+  padding: 4px 24px 24px;
+  overflow-y: auto; max-height: 72vh;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   GET ROLE OVERLAY (separate from general modal-overlay)
+════════════════════════════════════════════════════════════════════════════ */
+#getRoleOverlay .modal-card { max-width: 440px; }
+#getRoleOverlay .gr-body { padding: 0 24px 24px; display: flex; flex-direction: column; gap: 18px; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MISC LEGACY — keep old class names alive so nothing visually breaks
+════════════════════════════════════════════════════════════════════════════ */
+/* old card-glow (no-op now, kept for safety) */
+.card-glow { display: none; }
+
+/* old sniper page wrapper */
+.sniper-page { overflow-y: auto; }
+
+/* sound button label */
+#soundToggleBtn { min-width: 80px; }
