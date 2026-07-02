@@ -4,7 +4,7 @@
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <meta name="description" content="Live Brainrot Plaza log feed - OG, Dragon and Small finds in real time." />
-      <title>Brainrot Logger</title>
+      <title>Plaza Sniper</title>
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -26,7 +26,7 @@
             />
             <div class="brand-mark" style="display:none">BR</div>
             <div>
-              <div class="login-brand-title">Brainrot Logger</div>
+              <div class="login-brand-title">Plaza Sniper | OG Finder</div>
               <div class="login-brand-sub" id="loginBrandSub">Sign in to view the live feed</div>
             </div>
           </div>
@@ -307,7 +307,7 @@
               />
               <div class="brand-mark" id="brandMarkFallback" style="display:none">BR</div>
               <div class="brand-text">
-                <h1>Brainrot Logger</h1>
+                <h1>Plaza Sniper | OG Finder</h1>
                 <p>Live Plaza finds &middot; real-time feed</p>
               </div>
             </div>
@@ -459,7 +459,7 @@
           </main>
   
           <footer class="foot">
-            <span>Brainrot Logger</span>
+            <span>Plaza Sniper | OG Finder</span>
             <span class="dot">&middot;</span>
             <span>logs auto-expire after 24h</span>
           </footer>
@@ -468,118 +468,58 @@
         <!-- ═══════════════════════════════════════════════════════════════════
              OG SNIPER PAGE
         ════════════════════════════════════════════════════════════════════ -->
-        <div id="viewOgSniper" class="sniper-page" hidden>
+                <div id="viewOgSniper" hidden>
           <div class="sniper-hero">
-            <div class="sniper-hero-inner">
-              <div class="sniper-title-wrap">
-                <span class="sniper-eyebrow">🎯 Tool</span>
-                <h2 class="sniper-title">OG SNIPER</h2>
-                <div class="sniper-free-pill">
-                  <span class="sniper-free-dot"></span>
-                  Free For 1 Day
-                </div>
+            <div class="sniper-eyebrow">&#x1F3AF; Tool</div>
+            <h2 class="sniper-title">OG <span class="sniper-title-grad">SNIPER</span></h2>
+            <p class="sniper-sub">Ranked worst to best &#x2014; know what you&#39;re sniping before you snipe it.</p>
+          </div>
+          <div class="tier-grid">
+            <div class="tier-card" data-tier="D">
+              <div class="tier-rank">D &middot; WORST</div>
+              <div class="tier-emoji">&#x1F6BD;</div>
+              <div class="tier-name">Skibidi Toilet</div>
+              <div class="tier-desc">The bottom of the barrel. Low value, low rarity, high cringe. Skip unless desperate.</div>
+              <div class="tier-stats">
+                <div class="tier-stat-row"><div class="tier-stat-label"><span>Value</span><span>12%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:12%"></div></div></div>
+                <div class="tier-stat-row"><div class="tier-stat-label"><span>Rarity</span><span>8%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:8%"></div></div></div>
+                <div class="tier-stat-row"><div class="tier-stat-label"><span>Demand</span><span>5%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:5%"></div></div></div>
               </div>
-              <p class="sniper-sub">Ranked worst to best — know what you're sniping before you snipe it.</p>
+            </div>
+            <div class="tier-card" data-tier="C">
+              <div class="tier-rank">C &middot; BAD</div>
+              <div class="tier-emoji">&#x1F4F1;</div>
+              <div class="tier-name">John Pork</div>
+              <div class="tier-desc">Mid at best. Niche appeal, forgettable hold. Not the worst pick, but you can do better.</div>
+              <div class="tier-stats">
+                <div class="tier-stat-row"><div class="tier-stat-label"><span>Value</span><span>30%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:30%"></div></div></div>
+                <div class="tier-stat-row"><div class="tier-stat-label"><span>Rarity</span><span>24%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:24%"></div></div></div>
+                <div class="tier-stat-row"><div class="tier-stat-label"><span>Demand</span><span>20%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:20%"></div></div></div>
+              </div>
+            </div>
+            <div class="tier-card" data-tier="B">
+              <div class="tier-rank">B &middot; SOLID</div>
+              <div class="tier-emoji">&#x1F989;</div>
+              <div class="tier-name">Meowl</div>
+              <div class="tier-desc">Solid choice. Decent rarity, respectable demand. A reliable snipe for steady players.</div>
+              <div class="tier-stats">
+                <div class="tier-stat-row"><div class="tier-stat-label"><span>Value</span><span>62%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:62%"></div></div></div>
+                <div class="tier-stat-row"><div class="tier-stat-label"><span>Rarity</span><span>55%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:55%"></div></div></div>
+                <div class="tier-stat-row"><div class="tier-stat-label"><span>Demand</span><span>68%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:68%"></div></div></div>
+              </div>
+            </div>
+            <div class="tier-card" data-tier="S">
+              <div class="tier-rank">S &middot; BEST</div>
+              <div class="tier-emoji">&#x1F353;</div>
+              <div class="tier-name">Strawberry Elephant</div>
+              <div class="tier-desc">The crown jewel. High rarity, insane demand, top-tier value. Drop everything and go.</div>
+              <div class="tier-stats">
+                <div class="tier-stat-row"><div class="tier-stat-label"><span>Value</span><span>96%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:96%"></div></div></div>
+                <div class="tier-stat-row"><div class="tier-stat-label"><span>Rarity</span><span>94%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:94%"></div></div></div>
+                <div class="tier-stat-row"><div class="tier-stat-label"><span>Demand</span><span>98%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:98%"></div></div></div>
+              </div>
             </div>
           </div>
-
-          <div class="sniper-tiers">
-
-            <!-- ── D Tier — Skibidi Toilet ─────────────────────────────────── -->
-            <div class="tier-card tier-d">
-              <div class="tier-rank-col">
-                <div class="tier-badge tier-badge-d">D</div>
-                <div class="tier-label-vert">WORST</div>
-              </div>
-              <div class="tier-content">
-                <div class="tier-header">
-                  <span class="tier-emoji">🚽</span>
-                  <div>
-                    <div class="tier-name">Skibidi Toilet</div>
-                    <div class="tier-desc">The bottom of the barrel. Barely worth the click, let alone the steal. Low value, low rarity, high cringe factor. Skip it unless you're truly desperate.</div>
-                  </div>
-                </div>
-                <div class="tier-stats">
-                  <div class="tier-stat"><span class="tier-stat-label">Value</span><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:12%"></div></div></div>
-                  <div class="tier-stat"><span class="tier-stat-label">Rarity</span><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:8%"></div></div></div>
-                  <div class="tier-stat"><span class="tier-stat-label">Demand</span><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:5%"></div></div></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- ── C Tier — John Pork ──────────────────────────────────────── -->
-            <div class="tier-card tier-c">
-              <div class="tier-rank-col">
-                <div class="tier-badge tier-badge-c">C</div>
-                <div class="tier-label-vert">BAD</div>
-              </div>
-              <div class="tier-content">
-                <div class="tier-header">
-                  <span class="tier-emoji">📱</span>
-                  <div>
-                    <div class="tier-name">John Pork</div>
-                    <div class="tier-desc">Mid at best. You might flip it for a small profit but don't get your hopes up. Niche appeal, forgettable hold. Not the worst pick, but you can do better.</div>
-                  </div>
-                </div>
-                <div class="tier-stats">
-                  <div class="tier-stat"><span class="tier-stat-label">Value</span><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:30%"></div></div></div>
-                  <div class="tier-stat"><span class="tier-stat-label">Rarity</span><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:24%"></div></div></div>
-                  <div class="tier-stat"><span class="tier-stat-label">Demand</span><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:20%"></div></div></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- ── B Tier — Meowl ──────────────────────────────────────────── -->
-            <div class="tier-card tier-b">
-              <div class="tier-rank-col">
-                <div class="tier-badge tier-badge-b">B</div>
-                <div class="tier-label-vert">SOLID</div>
-              </div>
-              <div class="tier-content">
-                <div class="tier-header">
-                  <span class="tier-emoji">🦉</span>
-                  <div>
-                    <div class="tier-name">Meowl</div>
-                    <div class="tier-desc">Solid choice. Decent rarity, respectable demand, and won't sit in your inventory collecting dust. A reliable snipe for steady players who know the market.</div>
-                  </div>
-                </div>
-                <div class="tier-stats">
-                  <div class="tier-stat"><span class="tier-stat-label">Value</span><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:62%"></div></div></div>
-                  <div class="tier-stat"><span class="tier-stat-label">Rarity</span><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:55%"></div></div></div>
-                  <div class="tier-stat"><span class="tier-stat-label">Demand</span><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:68%"></div></div></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- ── S Tier — Strawberry Elephant ───────────────────────────── -->
-            <div class="tier-card tier-s">
-              <div class="tier-rank-col">
-                <div class="tier-badge tier-badge-s">S</div>
-                <div class="tier-label-vert">BEST</div>
-              </div>
-              <div class="tier-content">
-                <div class="tier-header">
-                  <span class="tier-emoji">🍓</span>
-                  <div>
-                    <div class="tier-name">Strawberry Elephant</div>
-                    <div class="tier-desc">The crown jewel. High rarity, insane demand, and top-tier trade value. If you see one in the wild, drop everything and go. This is the one you're here for.</div>
-                  </div>
-                </div>
-                <div class="tier-stats">
-                  <div class="tier-stat"><span class="tier-stat-label">Value</span><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:96%"></div></div></div>
-                  <div class="tier-stat"><span class="tier-stat-label">Rarity</span><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:94%"></div></div></div>
-                  <div class="tier-stat"><span class="tier-stat-label">Demand</span><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:98%"></div></div></div>
-                </div>
-              </div>
-            </div>
-
-          </div><!-- /sniper-tiers -->
-
-          <footer class="foot">
-            <span>OG Sniper</span>
-            <span class="dot">&middot;</span>
-            <span>Free access · 1 day trial</span>
-          </footer>
         </div><!-- /viewOgSniper -->
 
       </div><!-- /page -->
@@ -821,6 +761,8 @@
       <script src="/app.js"></script>
     </body>
   </html>
+
+
 
 
 
