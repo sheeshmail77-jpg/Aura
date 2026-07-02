@@ -1872,3 +1872,36 @@
     closeModal();
   });
 })();
+
+/* ════════════════════════════════════════════════════════════════════════
+   PAGE NAV — Logger ↔ OG Sniper tab switcher
+════════════════════════════════════════════════════════════════════════ */
+(function initPageNav() {
+  const btnLogger  = document.getElementById("navLogger");
+  const btnSniper  = document.getElementById("navOgSniper");
+  const viewLogger = document.getElementById("viewLogger");
+  const viewSniper = document.getElementById("viewOgSniper");
+
+  if (!btnLogger || !btnSniper || !viewLogger || !viewSniper) return;
+
+  function showLogger() {
+    viewLogger.hidden = false;
+    viewSniper.hidden = true;
+    btnLogger.classList.add("page-nav-active");
+    btnLogger.setAttribute("aria-selected", "true");
+    btnSniper.classList.remove("page-nav-active");
+    btnSniper.setAttribute("aria-selected", "false");
+  }
+
+  function showSniper() {
+    viewSniper.hidden = false;
+    viewLogger.hidden = true;
+    btnSniper.classList.add("page-nav-active");
+    btnSniper.setAttribute("aria-selected", "true");
+    btnLogger.classList.remove("page-nav-active");
+    btnLogger.setAttribute("aria-selected", "false");
+  }
+
+  btnLogger.addEventListener("click", showLogger);
+  btnSniper.addEventListener("click", showSniper);
+})();
