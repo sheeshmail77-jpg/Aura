@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OG Sniper — Brainrot Logger</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #050510;
+      --panel: rgba(12, 12, 24, 0.78);
+      --border: rgba(255,255,255,0.07);
+      --border-strong: rgba(255,255,255,0.14);
+      --text: #eef0f8;
+      --muted: #8891aa;
+      --faint: #4e5570;
+      --og: #ffb43c;
+      --og-2: #ff6600;
+      --radius: 20px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Inter", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ── Animated background ── */
+    .bg-mesh {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+    }
+    .orb {
+      position: absolute; border-radius: 50%;
+      filter: blur(100px); opacity: 0;
+      animation: orbFloat 12s ease-in-out infinite;
+    }
+    .orb-1 { width: 600px; height: 600px; background: radial-gradient(circle, #ff8800 0%, #ff2200 60%); top: -200px; left: -150px; opacity: 0.22; animation-delay: 0s; }
+    .orb-2 { width: 500px; height: 500px; background: radial-gradient(circle, #cc00ff 0%, #4400aa 60%); top: 30%; right: -200px; opacity: 0.14; animation-delay: 4s; }
+    .orb-3 { width: 700px; height: 700px; background: radial-gradient(circle, #0066ff 0%, #002288 60%); bottom: -300px; left: 20%; opacity: 0.16; animation-delay: 8s; }
+    @keyframes orbFloat {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50%       { transform: translateY(-40px) scale(1.05); }
+    }
+
+    /* ── Grid overlay ── */
+    .bg-grid {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 0%, black 30%, transparent 100%);
+    }
+
+    /* ── Layout ── */
+    .page { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 0 24px 80px; }
+
+    /* ── Nav ── */
+    .sniper-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 24px 0 0;
+    }
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 16px; border-radius: 999px;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border-strong);
+      color: var(--muted); font-size: 13px; font-weight: 700;
+      text-decoration: none; font-family: inherit; cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .back-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+    .nav-brand {
+      font-size: 13px; font-weight: 700; color: var(--faint);
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center; padding: 64px 0 52px;
+    }
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 16px; border-radius: 999px;
+      background: rgba(255,180,60,0.1); border: 1px solid rgba(255,180,60,0.3);
+      color: var(--og); font-size: 12px; font-weight: 800; letter-spacing: 1px;
+      text-transform: uppercase; margin-bottom: 24px;
+    }
+    .hero-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--og);
+      box-shadow: 0 0 8px rgba(255,180,60,0.8);
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(255,180,60,0.6); }
+      70%  { box-shadow: 0 0 0 8px rgba(255,180,60,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,180,60,0); }
+    }
+    .hero-title {
+      font-size: clamp(48px, 8vw, 80px);
+      font-weight: 900; letter-spacing: -2px; line-height: 1;
+      background: linear-gradient(135deg, #ffffff 0%, #ffca6e 40%, #ff6600 80%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 20px;
+    }
+    .hero-free {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 10px 22px; border-radius: 999px;
+      background: linear-gradient(135deg, rgba(46,227,122,0.18), rgba(31,191,106,0.1));
+      border: 1px solid rgba(46,227,122,0.35);
+      color: #4be08a; font-size: 15px; font-weight: 800;
+      margin-bottom: 18px;
+    }
+    .free-icon { font-size: 16px; }
+    .hero-sub {
+      font-size: 16px; color: var(--muted); line-height: 1.6;
+      max-width: 480px; margin: 0 auto;
+    }
+
+    /* ── Divider ── */
+    .section-divider {
+      display: flex; align-items: center; gap: 16px;
+      margin: 8px 0 32px;
+    }
+    .section-divider-line { flex: 1; height: 1px; background: var(--border); }
+    .section-divider-label {
+      font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--faint);
+    }
+
+    /* ── Tiers ── */
+    .tiers { display: flex; flex-direction: column; gap: 16px; }
+
+    .tier-card {
+      position: relative; overflow: hidden;
+      border-radius: var(--radius); border: 1px solid var(--border);
+      background: var(--panel);
+      backdrop-filter: blur(20px) saturate(1.2);
+      transition: transform 0.2s cubic-bezier(0.2,0.9,0.25,1), box-shadow 0.2s;
+    }
+    .tier-card:hover { transform: translateY(-3px); }
+
+    /* Glow overlay per tier */
+    .tier-card::before {
+      content: ""; position: absolute; inset: 0; opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none; border-radius: inherit;
+    }
+    .tier-card:hover::before { opacity: 1; }
+
+    .tier-card-inner { display: flex; align-items: stretch; }
+
+    /* Rank stripe */
+    .tier-stripe {
+      width: 80px; flex-shrink: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 8px; padding: 28px 0;
+      position: relative;
+    }
+    .tier-stripe::after {
+      content: ""; position: absolute; right: 0; top: 16px; bottom: 16px;
+      width: 1px; background: var(--border);
+    }
+
+    .tier-letter {
+      font-size: 34px; font-weight: 900; line-height: 1;
+      letter-spacing: -1px;
+    }
+    .tier-word {
+      font-size: 8.5px; font-weight: 800; letter-spacing: 2px;
+      text-transform: uppercase; opacity: 0.5; writing-mode: vertical-rl;
+      transform: rotate(180deg);
+    }
+
+    /* Content */
+    .tier-body { flex: 1; min-width: 0; padding: 24px 28px; }
+    .tier-head { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
+    .tier-emoji { font-size: 36px; line-height: 1; flex-shrink: 0; }
+    .tier-info { flex: 1; min-width: 0; }
+    .tier-name-row { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; flex-wrap: wrap; }
+    .tier-name { font-size: 20px; font-weight: 900; letter-spacing: -0.3px; }
+    .tier-rank-chip {
+      font-size: 9.5px; font-weight: 900; letter-spacing: 1px;
+      text-transform: uppercase; padding: 3px 10px; border-radius: 6px;
+    }
+    .tier-desc {
+      font-size: 13.5px; color: var(--muted); line-height: 1.65;
+    }
+
+    /* Stat bars */
+    .tier-bars { display: flex; flex-direction: column; gap: 9px; margin-top: 18px; }
+    .bar-row { display: flex; align-items: center; gap: 12px; }
+    .bar-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--faint); min-width: 56px; }
+    .bar-track { flex: 1; height: 6px; border-radius: 4px; background: rgba(255,255,255,0.05); overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+    .bar-val { font-size: 11px; font-weight: 800; min-width: 32px; text-align: right; }
+
+    /* ═══ D TIER ═══ */
+    .tier-d { border-color: rgba(100,110,130,0.25); }
+    .tier-d:hover { box-shadow: 0 12px 48px rgba(100,110,130,0.15); border-color: rgba(120,130,150,0.4); }
+    .tier-d::before { background: radial-gradient(ellipse 80% 60% at 0% 50%, rgba(100,110,130,0.06), transparent); }
+    .tier-d .tier-stripe { background: rgba(100,110,130,0.06); }
+    .tier-d .tier-letter { color: #8a95a8; }
+    .tier-d .tier-word   { color: #8a95a8; }
+    .tier-d .tier-name   { color: #a0aabc; }
+    .tier-d .tier-rank-chip { background: rgba(100,110,130,0.15); border: 1px solid rgba(120,130,150,0.3); color: #8a95a8; }
+    .tier-d .bar-fill    { background: linear-gradient(90deg, #4e5570, #7a8498); }
+    .tier-d .bar-val     { color: #7a8498; }
+
+    /* ═══ C TIER ═══ */
+    .tier-c { border-color: rgba(249,115,22,0.25); }
+    .tier-c:hover { box-shadow: 0 12px 48px rgba(249,115,22,0.15); border-color: rgba(249,115,22,0.45); }
+    .tier-c::before { background: radial-gradient(ellipse 80% 60% at 0% 50%, rgba(249,115,22,0.06), transparent); }
+    .tier-c .tier-stripe { background: rgba(249,115,22,0.05); }
+    .tier-c .tier-letter { color: #fb923c; }
+    .tier-c .tier-word   { color: #fb923c; }
+    .tier-c .tier-name   { color: #fdba74; }
+    .tier-c .tier-rank-chip { background: rgba(249,115,22,0.15); border: 1px solid rgba(249,115,22,0.4); color: #fb923c; }
+    .tier-c .bar-fill    { background: linear-gradient(90deg, #c2410c, #fb923c); }
+    .tier-c .bar-val     { color: #fb923c; }
+
+    /* ═══ B TIER ═══ */
+    .tier-b { border-color: rgba(139,92,246,0.28); }
+    .tier-b:hover { box-shadow: 0 12px 48px rgba(139,92,246,0.18); border-color: rgba(139,92,246,0.5); }
+    .tier-b::before { background: radial-gradient(ellipse 80% 60% at 0% 50%, rgba(139,92,246,0.07), transparent); }
+    .tier-b .tier-stripe { background: rgba(139,92,246,0.06); }
+    .tier-b .tier-letter { color: #a78bfa; }
+    .tier-b .tier-word   { color: #a78bfa; }
+    .tier-b .tier-name   { color: #c4b5fd; }
+    .tier-b .tier-rank-chip { background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.4); color: #a78bfa; }
+    .tier-b .bar-fill    { background: linear-gradient(90deg, #6d28d9, #a78bfa); }
+    .tier-b .bar-val     { color: #a78bfa; }
+
+    /* ═══ S TIER ═══ */
+    .tier-s {
+      border-color: rgba(255,180,60,0.4);
+      background: linear-gradient(135deg, rgba(12,12,24,0.9), rgba(14,12,24,0.88));
+    }
+    .tier-s:hover {
+      box-shadow: 0 16px 64px rgba(255,140,0,0.25), 0 0 0 1px rgba(255,180,60,0.2);
+      border-color: rgba(255,180,60,0.7);
+    }
+    .tier-s::before { background: radial-gradient(ellipse 80% 60% at 0% 50%, rgba(255,140,0,0.1), transparent); }
+    .tier-s .tier-stripe { background: rgba(255,140,0,0.07); }
+    .tier-s .tier-letter {
+      background: linear-gradient(135deg, #ffca6e, #ff6600);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 12px rgba(255,140,0,0.5));
+    }
+    .tier-s .tier-word   { color: var(--og); }
+    .tier-s .tier-name {
+      background: linear-gradient(135deg, #ffca6e, #ec4899);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .tier-s .tier-rank-chip {
+      background: linear-gradient(135deg, rgba(255,180,60,0.2), rgba(236,72,153,0.15));
+      border: 1px solid rgba(255,180,60,0.5); color: var(--og);
+    }
+    .tier-s .bar-fill { background: linear-gradient(90deg, #ff6600, #ec4899); }
+    .tier-s .bar-val  { color: var(--og); }
+
+    /* "Best" crown tag on S tier */
+    .s-crown {
+      position: absolute; top: -1px; right: 24px;
+      background: linear-gradient(135deg, var(--og), var(--og-2));
+      color: #0a0a0f; font-size: 10px; font-weight: 900; letter-spacing: 0.5px;
+      padding: 4px 14px; border-radius: 0 0 10px 10px;
+      box-shadow: 0 4px 16px rgba(255,140,0,0.3);
+    }
+
+    /* ── Footer ── */
+    .sniper-footer {
+      text-align: center; margin-top: 48px;
+      color: var(--faint); font-size: 12.5px;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .sniper-footer a { color: var(--muted); text-decoration: none; }
+    .sniper-footer a:hover { color: var(--text); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 8px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+
+    @media (max-width: 580px) {
+      .tier-card-inner { flex-direction: column; }
+      .tier-stripe {
+        flex-direction: row; width: 100%; padding: 16px 24px;
+        justify-content: flex-start; gap: 12px;
+      }
+      .tier-stripe::after { display: none; }
+      .tier-word { writing-mode: horizontal-tb; transform: none; }
+      .tier-body { padding: 18px 24px 24px; }
+      .hero-title { letter-spacing: -1px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Animated background -->
+  <div class="bg-mesh">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+  <div class="bg-grid"></div>
+
+  <div class="page">
+
+    <!-- Nav -->
+    <nav class="sniper-nav">
+      <a href="javascript:window.close()" class="back-btn" onclick="window.close(); return false;">
+        ← Close
+      </a>
+      <span class="nav-brand">Brainrot Logger</span>
+    </nav>
+
+    <!-- Hero -->
+    <header class="hero">
+      <div class="hero-eyebrow">
+        <div class="hero-dot"></div>
+        OG Sniper Tool
+      </div>
+      <h1 class="hero-title">OG SNIPER</h1>
+      <div class="hero-free">
+        <span class="free-icon">⚡</span>
+        Free For 1 Day
+      </div>
+      <p class="hero-sub">Ranked worst to best — know what you're targeting before you pull the trigger.</p>
+    </header>
+
+    <!-- Tier list -->
+    <div class="section-divider">
+      <div class="section-divider-line"></div>
+      <div class="section-divider-label">Tier Rankings · Worst → Best</div>
+      <div class="section-divider-line"></div>
+    </div>
+
+    <div class="tiers">
+
+      <!-- D — Skibidi Toilet -->
+      <div class="tier-card tier-d">
+        <div class="tier-card-inner">
+          <div class="tier-stripe">
+            <div class="tier-letter">D</div>
+            <div class="tier-word">WORST</div>
+          </div>
+          <div class="tier-body">
+            <div class="tier-head">
+              <span class="tier-emoji">🚽</span>
+              <div class="tier-info">
+                <div class="tier-name-row">
+                  <div class="tier-name">Skibidi Toilet</div>
+                  <span class="tier-rank-chip">D Tier</span>
+                </div>
+                <p class="tier-desc">The bottom of the barrel. Barely worth the click, let alone the steal. Low value, almost zero demand, and nobody's paying a premium for this. Only snipe if you're completely desperate and have nothing else to go for.</p>
+              </div>
+            </div>
+            <div class="tier-bars">
+              <div class="bar-row"><span class="bar-label">Value</span><div class="bar-track"><div class="bar-fill" style="width:10%"></div></div><span class="bar-val">1/10</span></div>
+              <div class="bar-row"><span class="bar-label">Rarity</span><div class="bar-track"><div class="bar-fill" style="width:8%"></div></div><span class="bar-val">1/10</span></div>
+              <div class="bar-row"><span class="bar-label">Demand</span><div class="bar-track"><div class="bar-fill" style="width:5%"></div></div><span class="bar-val">1/10</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- C — John Pork -->
+      <div class="tier-card tier-c">
+        <div class="tier-card-inner">
+          <div class="tier-stripe">
+            <div class="tier-letter">C</div>
+            <div class="tier-word">BAD</div>
+          </div>
+          <div class="tier-body">
+            <div class="tier-head">
+              <span class="tier-emoji">📱</span>
+              <div class="tier-info">
+                <div class="tier-name-row">
+                  <div class="tier-name">John Pork</div>
+                  <span class="tier-rank-chip">C Tier</span>
+                </div>
+                <p class="tier-desc">Mid at best. You might flip it for a small gain but don't get your hopes up. Niche appeal and forgettable long-term hold. If you see it, think twice — there's almost always a better target nearby.</p>
+              </div>
+            </div>
+            <div class="tier-bars">
+              <div class="bar-row"><span class="bar-label">Value</span><div class="bar-track"><div class="bar-fill" style="width:28%"></div></div><span class="bar-val">3/10</span></div>
+              <div class="bar-row"><span class="bar-label">Rarity</span><div class="bar-track"><div class="bar-fill" style="width:22%"></div></div><span class="bar-val">2/10</span></div>
+              <div class="bar-row"><span class="bar-label">Demand</span><div class="bar-track"><div class="bar-fill" style="width:18%"></div></div><span class="bar-val">2/10</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- B — Meowl -->
+      <div class="tier-card tier-b">
+        <div class="tier-card-inner">
+          <div class="tier-stripe">
+            <div class="tier-letter">B</div>
+            <div class="tier-word">SOLID</div>
+          </div>
+          <div class="tier-body">
+            <div class="tier-head">
+              <span class="tier-emoji">🦉</span>
+              <div class="tier-info">
+                <div class="tier-name-row">
+                  <div class="tier-name">Meowl</div>
+                  <span class="tier-rank-chip">B Tier</span>
+                </div>
+                <p class="tier-desc">A solid, reliable pick. Decent rarity with consistent demand that won't leave you stuck holding a bag. A great snipe for steady players — quick to flip and easy to move. Don't sleep on it.</p>
+              </div>
+            </div>
+            <div class="tier-bars">
+              <div class="bar-row"><span class="bar-label">Value</span><div class="bar-track"><div class="bar-fill" style="width:62%"></div></div><span class="bar-val">6/10</span></div>
+              <div class="bar-row"><span class="bar-label">Rarity</span><div class="bar-track"><div class="bar-fill" style="width:55%"></div></div><span class="bar-val">6/10</span></div>
+              <div class="bar-row"><span class="bar-label">Demand</span><div class="bar-track"><div class="bar-fill" style="width:68%"></div></div><span class="bar-val">7/10</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- S — Strawberry Elephant -->
+      <div class="tier-card tier-s">
+        <span class="s-crown">⭐ BEST PICK</span>
+        <div class="tier-card-inner">
+          <div class="tier-stripe">
+            <div class="tier-letter">S</div>
+            <div class="tier-word">BEST</div>
+          </div>
+          <div class="tier-body">
+            <div class="tier-head">
+              <span class="tier-emoji">🍓</span>
+              <div class="tier-info">
+                <div class="tier-name-row">
+                  <div class="tier-name">Strawberry Elephant</div>
+                  <span class="tier-rank-chip">S Tier</span>
+                </div>
+                <p class="tier-desc">The crown jewel. Insane demand, elite rarity, and top-tier trade value that speaks for itself. If you spot one in the wild — drop everything and go immediately. This is the one you are here for.</p>
+              </div>
+            </div>
+            <div class="tier-bars">
+              <div class="bar-row"><span class="bar-label">Value</span><div class="bar-track"><div class="bar-fill" style="width:96%"></div></div><span class="bar-val">10/10</span></div>
+              <div class="bar-row"><span class="bar-label">Rarity</span><div class="bar-track"><div class="bar-fill" style="width:94%"></div></div><span class="bar-val">9/10</span></div>
+              <div class="bar-row"><span class="bar-label">Demand</span><div class="bar-track"><div class="bar-fill" style="width:98%"></div></div><span class="bar-val">10/10</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /tiers -->
+
+    <footer class="sniper-footer">
+      <span>OG Sniper</span>
+      <span>·</span>
+      <span>Part of <a href="/">Brainrot Logger</a></span>
+      <span>·</span>
+      <span>Free 1-day access</span>
+    </footer>
+
+  </div><!-- /page -->
+</body>
+</html>
