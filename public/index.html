@@ -587,37 +587,36 @@
   
       <template id="cardTpl">
         <article class="card">
-          <div class="card-glow"></div>
-          <div class="card-img">
-            <img alt="" loading="lazy" />
-            <span class="card-tier"></span>
-          </div>
-          <div class="card-body">
-            <div class="card-title"></div>
-            <div class="card-animals"></div>
+          <div class="card-top">
+            <div class="card-img">
+              <img alt="" loading="lazy" />
+            </div>
             <div class="card-meta">
-              <div class="owner">
-                <span class="owner-ava"></span>
-                <a class="owner-name" target="_blank" rel="noopener"></a>
-                <button type="button" class="owner-copy" title="Copy username" aria-label="Copy username">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2"></rect>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                  </svg>
-                </button>
-              </div>
-              <div class="card-actions">
-                <a class="join-btn" target="_blank" rel="noopener">Join</a>
-              </div>
+              <div class="card-tier"></div>
+              <div class="card-title"></div>
             </div>
           </div>
-          <div class="card-time">
-            <button type="button" class="info-btn-mini" title="Animal info" aria-label="Animal info">
-              <svg viewBox="0 0 20 20" fill="currentColor" width="11" height="11">
-                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+          <div class="card-animals"></div>
+          <div class="card-owner">
+            <span class="owner-ava"></span>
+            <a class="owner-name" target="_blank" rel="noopener"></a>
+            <button type="button" class="owner-copy" title="Copy username" aria-label="Copy username">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
               </svg>
             </button>
+          </div>
+          <div class="card-footer">
             <span class="ago"></span>
+            <div class="card-actions">
+              <button type="button" class="info-btn-mini" title="Animal info" aria-label="Animal info">
+                <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                </svg>
+              </button>
+              <a class="join-btn" target="_blank" rel="noopener">Join</a>
+            </div>
           </div>
         </article>
       </template>
@@ -822,6 +821,7 @@
       <script src="/app.js"></script>
     </body>
   </html>
+
 
 
 
