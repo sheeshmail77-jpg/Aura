@@ -522,13 +522,14 @@ body::before {
    LOG CARDS
 ════════════════════════════════════════════════════════════════════════════ */
 .card {
-  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
-  border-radius: 14px; padding: 12px 13px;
-  display: flex; flex-direction: column; gap: 8px;
-  transition: border-color 0.18s, box-shadow 0.18s, transform 0.15s, background 0.18s;
-  position: relative; overflow: hidden;
-  cursor: default;
-}
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: 14px; padding: 12px 13px;
+    display: flex; flex-direction: column; gap: 8px;
+    transition: border-color 0.18s, box-shadow 0.18s, transform 0.15s, background 0.18s;
+    position: relative; overflow: hidden;
+    cursor: default;
+    flex-shrink: 0;
+  }
 .card::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
   background: var(--card-accent); opacity: 0.85;
