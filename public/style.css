@@ -1410,3 +1410,296 @@
   background: var(--faint);
   box-shadow: none;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   GLOBAL ENHANCEMENTS — richer background orbs + polish
+══════════════════════════════════════════════════════════════════════════════ */
+
+/* More vivid orbs */
+.orb-1 { background: radial-gradient(circle, #ff9c00 0%, #ff5500 100%); opacity: 0.38; }
+.orb-2 { background: radial-gradient(circle, #ff3b3b 0%, #a0000a 100%); opacity: 0.28; }
+.orb-3 { background: radial-gradient(circle, #2090ff 0%, #0040a0 100%); opacity: 0.26; }
+
+/* Stat cards — color-tinted glow on hover */
+.stat-card { transition: transform 0.15s, box-shadow 0.15s; }
+.stat-card:hover { transform: translateY(-2px); }
+.stat-card.og:hover     { box-shadow: 0 8px 32px rgba(255,180,60,0.18); border-color: rgba(255,180,60,0.3); }
+.stat-card.dragon:hover { box-shadow: 0 8px 32px rgba(255,77,77,0.18);  border-color: rgba(255,77,77,0.3); }
+.stat-card.small:hover  { box-shadow: 0 8px 32px rgba(56,208,255,0.18); border-color: rgba(56,208,255,0.3); }
+.stat-card.total:hover  { box-shadow: 0 8px 32px rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); }
+
+/* Stat number coloring */
+.stat-card.og .stat-num     { color: var(--og); }
+.stat-card.dragon .stat-num { color: var(--dragon); }
+.stat-card.small .stat-num  { color: var(--small); }
+
+/* Feed panels — subtle top accent stripe per tier */
+.feed-og     { border-top: 2px solid rgba(255,180,60,0.5); }
+.feed-dragon { border-top: 2px solid rgba(255,77,77,0.5); }
+.feed-small  { border-top: 2px solid rgba(56,208,255,0.5); }
+
+/* Better card hover glow */
+.card { transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; }
+.card:hover { transform: translateY(-1px); }
+.feed-og .card:hover     { box-shadow: 0 6px 24px rgba(255,180,60,0.15); border-color: rgba(255,180,60,0.3); }
+.feed-dragon .card:hover { box-shadow: 0 6px 24px rgba(255,77,77,0.15);  border-color: rgba(255,77,77,0.3); }
+.feed-small .card:hover  { box-shadow: 0 6px 24px rgba(56,208,255,0.15); border-color: rgba(56,208,255,0.3); }
+
+/* Topbar bottom separator */
+.topbar { border-bottom: 1px solid var(--border); }
+
+/* Slightly richer login gradient */
+.login-card {
+  background: rgba(12, 12, 22, 0.96);
+  box-shadow: 0 40px 100px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   PAGE NAV TABS
+══════════════════════════════════════════════════════════════════════════════ */
+.page-nav {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px clamp(16px, 4vw, 48px) 6px;
+  max-width: 1500px; width: 100%; margin: 0 auto;
+  position: relative; z-index: 1;
+}
+
+.page-nav-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 18px; border-radius: 999px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  color: var(--muted); font-size: 13px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+}
+.page-nav-btn:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+}
+.page-nav-btn.page-nav-active {
+  background: rgba(255,180,60,0.1);
+  border-color: rgba(255,180,60,0.4);
+  color: var(--og);
+  box-shadow: 0 0 12px rgba(255,180,60,0.12);
+}
+
+.nav-free-tag {
+  background: linear-gradient(135deg, #2ee37a, #1fbf6a);
+  color: #031a0d;
+  font-size: 9px; font-weight: 900; letter-spacing: 0.8px;
+  padding: 2px 7px; border-radius: 4px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   OG SNIPER PAGE
+══════════════════════════════════════════════════════════════════════════════ */
+.sniper-page {
+  display: flex; flex-direction: column;
+  flex: 1; min-height: 0; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+.sniper-page[hidden] { display: none; }
+
+/* Hero banner */
+.sniper-hero {
+  padding: 32px clamp(16px, 4vw, 48px) 24px;
+  max-width: 1500px; width: 100%; margin: 0 auto;
+  position: relative; z-index: 1;
+}
+.sniper-hero-inner {
+  background: linear-gradient(135deg, rgba(255,140,0,0.08), rgba(255,50,50,0.06));
+  border: 1px solid rgba(255,180,60,0.25);
+  border-radius: 20px; padding: 28px 32px;
+  position: relative; overflow: hidden;
+}
+.sniper-hero-inner::before {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(600px 300px at 0% 50%, rgba(255,140,0,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.sniper-title-wrap {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.sniper-eyebrow {
+  font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--og); opacity: 0.75;
+}
+.sniper-title {
+  margin: 0; font-size: 32px; font-weight: 900; letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #ffca6e, #ff6a00);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.sniper-free-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 13px; border-radius: 999px;
+  background: linear-gradient(135deg, rgba(46,227,122,0.15), rgba(31,191,106,0.1));
+  border: 1px solid rgba(46,227,122,0.35);
+  color: #4be08a; font-size: 12px; font-weight: 800; letter-spacing: 0.3px;
+}
+.sniper-free-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #2ee37a;
+  box-shadow: 0 0 6px rgba(46,227,122,0.7);
+  animation: pulse 1.8s infinite;
+}
+.sniper-sub {
+  margin: 0; font-size: 14px; color: var(--muted); line-height: 1.6;
+}
+
+/* Tiers container */
+.sniper-tiers {
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 0 clamp(16px, 4vw, 48px) 24px;
+  max-width: 1500px; width: 100%; margin: 0 auto;
+  position: relative; z-index: 1;
+}
+
+/* Tier card base */
+.tier-card {
+  display: flex; align-items: stretch; gap: 0;
+  border-radius: 16px; overflow: hidden;
+  border: 1px solid var(--border);
+  background: rgba(18, 18, 30, 0.7);
+  backdrop-filter: blur(12px);
+  transition: transform 0.18s, box-shadow 0.18s;
+}
+.tier-card:hover { transform: translateY(-2px); }
+
+/* Rank column */
+.tier-rank-col {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 20px 20px;
+  min-width: 72px; flex-shrink: 0;
+  position: relative;
+}
+.tier-badge {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: grid; place-items: center;
+  font-size: 20px; font-weight: 900; letter-spacing: -0.5px;
+  flex-shrink: 0;
+}
+.tier-label-vert {
+  font-size: 9px; font-weight: 800; letter-spacing: 1.5px;
+  text-transform: uppercase; writing-mode: vertical-rl;
+  transform: rotate(180deg); opacity: 0.5;
+}
+
+/* Content side */
+.tier-content {
+  flex: 1; min-width: 0; padding: 20px 24px; border-left: 1px solid var(--border);
+}
+.tier-header {
+  display: flex; align-items: flex-start; gap: 14px; margin-bottom: 16px;
+}
+.tier-emoji { font-size: 32px; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+.tier-name {
+  font-size: 18px; font-weight: 900; letter-spacing: -0.3px; margin-bottom: 6px;
+}
+.tier-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+/* Stat bars */
+.tier-stats { display: flex; flex-direction: column; gap: 8px; }
+.tier-stat { display: flex; align-items: center; gap: 10px; }
+.tier-stat-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--faint); min-width: 54px;
+}
+.tier-stat-bar {
+  flex: 1; height: 5px; border-radius: 3px;
+  background: rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+.tier-stat-fill {
+  height: 100%; border-radius: 3px;
+  background: var(--tier-bar-color, rgba(255,255,255,0.3));
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── D tier ── */
+.tier-d {
+  border-color: rgba(107,114,128,0.3);
+}
+.tier-d:hover { box-shadow: 0 8px 32px rgba(107,114,128,0.12); border-color: rgba(107,114,128,0.45); }
+.tier-d .tier-rank-col { background: rgba(107,114,128,0.06); }
+.tier-d .tier-badge {
+  background: rgba(107,114,128,0.15); border: 1px solid rgba(107,114,128,0.4);
+  color: #9ca3af;
+}
+.tier-d .tier-name { color: #9ca3af; }
+.tier-d .tier-label-vert { color: #9ca3af; }
+.tier-d .tier-stat-fill { background: linear-gradient(90deg, #6b7280, #9ca3af); }
+
+/* ── C tier ── */
+.tier-c {
+  border-color: rgba(249,115,22,0.3);
+}
+.tier-c:hover { box-shadow: 0 8px 32px rgba(249,115,22,0.12); border-color: rgba(249,115,22,0.45); }
+.tier-c .tier-rank-col { background: rgba(249,115,22,0.05); }
+.tier-c .tier-badge {
+  background: rgba(249,115,22,0.15); border: 1px solid rgba(249,115,22,0.4);
+  color: #fb923c;
+}
+.tier-c .tier-name { color: #fb923c; }
+.tier-c .tier-label-vert { color: #fb923c; }
+.tier-c .tier-stat-fill { background: linear-gradient(90deg, #c2410c, #f97316); }
+
+/* ── B tier ── */
+.tier-b {
+  border-color: rgba(167,139,250,0.3);
+}
+.tier-b:hover { box-shadow: 0 8px 32px rgba(167,139,250,0.14); border-color: rgba(167,139,250,0.45); }
+.tier-b .tier-rank-col { background: rgba(167,139,250,0.06); }
+.tier-b .tier-badge {
+  background: rgba(167,139,250,0.15); border: 1px solid rgba(167,139,250,0.4);
+  color: #a78bfa;
+}
+.tier-b .tier-name { color: #a78bfa; }
+.tier-b .tier-label-vert { color: #a78bfa; }
+.tier-b .tier-stat-fill { background: linear-gradient(90deg, #6d28d9, #a78bfa); }
+
+/* ── S tier ── */
+.tier-s {
+  border-color: rgba(255,180,60,0.4);
+  background: linear-gradient(135deg, rgba(255,180,60,0.04), rgba(236,72,153,0.03));
+}
+.tier-s:hover {
+  box-shadow: 0 10px 40px rgba(255,180,60,0.2), 0 0 0 1px rgba(255,180,60,0.15);
+  border-color: rgba(255,180,60,0.6);
+}
+.tier-s .tier-rank-col { background: rgba(255,180,60,0.07); }
+.tier-s .tier-badge {
+  background: linear-gradient(135deg, rgba(255,180,60,0.2), rgba(236,72,153,0.15));
+  border: 1px solid rgba(255,180,60,0.5);
+  color: var(--og);
+  box-shadow: 0 0 16px rgba(255,180,60,0.2);
+}
+.tier-s .tier-name {
+  background: linear-gradient(135deg, #ffca6e, #ec4899);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.tier-s .tier-label-vert { color: var(--og); }
+.tier-s .tier-stat-fill { background: linear-gradient(90deg, #ff8c00, #ec4899); }
+
+/* Responsive: stack tier card on small screens */
+@media (max-width: 600px) {
+  .tier-card { flex-direction: column; }
+  .tier-rank-col {
+    flex-direction: row; justify-content: flex-start;
+    padding: 14px 18px; gap: 10px; min-width: unset;
+  }
+  .tier-label-vert { writing-mode: horizontal-tb; transform: none; }
+  .tier-content { border-left: none; border-top: 1px solid var(--border); }
+  .sniper-hero-inner { padding: 20px 18px; }
+  .sniper-title { font-size: 24px; }
+}
+
+/* viewLogger fills the flex layout properly */
+#viewLogger {
+  display: flex; flex-direction: column;
+  flex: 1; min-height: 0; overflow: hidden;
+}
