@@ -1907,126 +1907,169 @@
 })();
 
 /* ════════════════════════════════════════════════════════════════════════
-   OG SNIPER — categorized tier lists (OG / Dragon / Small) with images,
-   rendered as "log card" style rows, one distinctly-styled section per
-   category, worst → best.
+   OG SNIPER — OG-only tier list rendered as Logger-style log cards,
+   grouped into tier sections (S → B → C → D).
+   Includes an embedded Admin Abuse Notifier countdown.
 ════════════════════════════════════════════════════════════════════════ */
-(function initSniperTiers() {
-  const mount = document.getElementById("sniperSections");
-  if (!mount) return;
-
-  function proxyImg(url) {
-    if (!url) return null;
-    return "/api/img-proxy?url=" + encodeURIComponent(url);
-  }
+(function initOgSniper() {
+  /* ── helpers ─────────────────────────────────────────────────────── */
+  function proxyImg(url) { return url ? "/api/img-proxy?url=" + encodeURIComponent(url) : null; }
   function wikiImg(name) {
     const file = String(name).trim().replace(/\s+/g, "_");
-    return proxyImg(`https://stealabr.fandom.com/wiki/Special:FilePath/${encodeURIComponent(file)}.png`);
+    return proxyImg("https://stealabr.fandom.com/wiki/Special:FilePath/" + encodeURIComponent(file) + ".png");
   }
   function esc(s) {
-    return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
   }
 
-  const TIER_LABEL = { D: "WORST", C: "BAD", B: "SOLID", S: "BEST" };
-
-  // Each category is ranked worst → best. Swap/add entries any time — the
-  // renderer below just reads this list, no other code needs to change.
-  const SNIPER_DATA = {
-    og: {
-      label: "OG Tier List",
-      animals: [
-        { tier: "D", name: "Skibidi Toilet",       emoji: "🚽", desc: "Bottom of the barrel — low value, low rarity, almost no demand. Only snipe if desperate.", value: 12, rarity: 8,  demand: 5 },
-        { tier: "C", name: "John Pork",             emoji: "📱", desc: "Mid at best. Niche appeal, forgettable hold. There's almost always a better target nearby.", value: 30, rarity: 24, demand: 20 },
-        { tier: "B", name: "Meowl",                 emoji: "🦉", desc: "Solid, reliable pick with consistent demand. Quick to flip and easy to move.", value: 62, rarity: 55, demand: 68 },
-        { tier: "S", name: "Strawberry Elephant",   emoji: "🍓", desc: "The crown jewel of OGs. Insane demand, elite rarity — drop everything and go.", value: 96, rarity: 94, demand: 98 },
-      ],
-    },
-    dragon: {
-      label: "Dragon Tier List",
-      animals: [
-        { tier: "D", name: "Talpa Di Ferro",         emoji: "⛏️", desc: "Barely worth logging. Low rarity, near-zero trade interest.", value: 15, rarity: 10, demand: 9 },
-        { tier: "C", name: "Trippi Troppi",          emoji: "🐟", desc: "Middle of the pack. Might flip for a small gain if you're patient.", value: 34, rarity: 28, demand: 26 },
-        { tier: "B", name: "Ballerina Cappuccina",   emoji: "☕", desc: "Dependable dragon-tier find with steady demand from collectors.", value: 60, rarity: 58, demand: 64 },
-        { tier: "S", name: "Dragon Cannelloni",      emoji: "🐉", desc: "Top of the dragon lineup. Huge rarity and hype whenever one drops.", value: 95, rarity: 92, demand: 97 },
-      ],
-    },
-    small: {
-      label: "Small Tier List",
-      animals: [
-        { tier: "D", name: "Pot Hotspot",            emoji: "🍯", desc: "Extremely common newbie find. Skip unless you're brand new.", value: 10, rarity: 9,  demand: 6 },
-        { tier: "C", name: "Odin Din Din Dun",       emoji: "⚡", desc: "A step up from the basics, but still easy to come by.", value: 28, rarity: 22, demand: 19 },
-        { tier: "B", name: "Boneca Ambalabu",        emoji: "🪆", desc: "A nice early-game grab with decent resale among newer players.", value: 58, rarity: 52, demand: 60 },
-        { tier: "S", name: "Garama and Madundung",   emoji: "🐾", desc: "The best small-tier find out there — snap it up immediately.", value: 90, rarity: 88, demand: 93 },
-      ],
-    },
+  const TIER_META = {
+    S: { label: "S-TIER · BEST",  color: "#ffd060", bg: "rgba(255,140,0,0.12)",  border: "rgba(255,140,0,0.35)" },
+    B: { label: "B-TIER · SOLID", color: "#ffb940", bg: "rgba(255,185,64,0.1)",  border: "rgba(255,185,64,0.3)" },
+    C: { label: "C-TIER · MID",   color: "#93c5fd", bg: "rgba(59,130,246,0.1)",  border: "rgba(59,130,246,0.3)" },
+    D: { label: "D-TIER · WORST", color: "#90a0b0", bg: "rgba(96,112,128,0.12)", border: "rgba(96,112,128,0.3)" },
   };
 
-  function statRow(label, pct) {
-    return `
-      <div class="sniper-stat-row">
-        <div class="sniper-stat-label"><span>${label}</span><span>${pct}%</span></div>
-        <div class="sniper-stat-bar"><div class="sniper-stat-fill" style="width:${pct}%"></div></div>
-      </div>`;
-  }
+  /* ── OG Animals (add / reorder as needed) ────────────────────────── */
+  const OG_ANIMALS = [
+    { tier: "S", name: "Strawberry Elephant", emoji: "🍓", desc: "The crown jewel of OGs. Insane demand, elite rarity — drop everything and go." },
+    { tier: "B", name: "Meowl",               emoji: "🦉", desc: "Solid, reliable pick with consistent demand. Quick to flip and easy to move." },
+    { tier: "C", name: "John Pork",           emoji: "📱", desc: "Mid at best. Niche appeal, forgettable hold." },
+    { tier: "D", name: "Skibidi Toilet",      emoji: "🚽", desc: "Bottom of the barrel — low value, low rarity, almost no demand." },
+  ];
 
-  function buildRow(cat, a) {
-    const row = document.createElement("div");
-    row.className = `sniper-row sniper-row-${cat}`;
-    row.dataset.tier = a.tier;
+  /* ── Build the OG sections ───────────────────────────────────────── */
+  const mount = document.getElementById("ogSections");
+  if (!mount) return;
 
-    row.innerHTML = `
-      <div class="sniper-row-img">
-        <span class="sniper-row-emoji">${a.emoji}</span>
-        <img alt="" loading="lazy" />
-      </div>
-      <div class="sniper-row-body">
-        <div class="sniper-row-top">
-          <span class="sniper-row-name">${esc(a.name)}</span>
-          <span class="sniper-row-tier tier-${a.tier}">${a.tier} &middot; ${TIER_LABEL[a.tier]}</span>
+  // Group by tier, preserving order S → B → C → D
+  const groups = {};
+  OG_ANIMALS.forEach(a => { (groups[a.tier] = groups[a.tier] || []).push(a); });
+
+  ["S","B","C","D"].forEach(tier => {
+    const list = groups[tier];
+    if (!list || !list.length) return;
+    const tm = TIER_META[tier];
+
+    const section = document.createElement("section");
+    section.className = "og-tier-section";
+    section.dataset.tier = tier;
+
+    /* section header */
+    const hdr = document.createElement("div");
+    hdr.className = "og-tier-header";
+    hdr.innerHTML = `
+      <span class="og-tier-dot" style="background:${tm.color};box-shadow:0 0 8px ${tm.color}55"></span>
+      <span class="og-tier-title" style="color:${tm.color}">${tm.label}</span>
+      <span class="og-tier-count">${list.length}</span>`;
+    section.appendChild(hdr);
+
+    /* cards list */
+    const feed = document.createElement("div");
+    feed.className = "og-tier-feed";
+
+    list.forEach(a => {
+      const card = document.createElement("article");
+      card.className = "og-log-card";
+      card.dataset.tier = tier;
+      card.style.setProperty("--tier-color", tm.color);
+      card.style.setProperty("--tier-bg", tm.bg);
+      card.style.setProperty("--tier-border", tm.border);
+
+      card.innerHTML = `
+        <div class="og-log-accent"></div>
+        <div class="og-log-top">
+          <div class="og-log-img" data-fallback="${a.emoji}">
+            <img alt="${esc(a.name)}" loading="lazy" />
+          </div>
+          <div class="og-log-meta">
+            <span class="og-log-tier">${tier}</span>
+            <span class="og-log-name">${esc(a.name)}</span>
+          </div>
         </div>
-        <p class="sniper-row-desc">${esc(a.desc)}</p>
-        <div class="sniper-row-stats">
-          ${statRow("Value", a.value)}
-          ${statRow("Rarity", a.rarity)}
-          ${statRow("Demand", a.demand)}
-        </div>
-      </div>`;
+        <p class="og-log-desc">${esc(a.desc)}</p>`;
 
-    // Try to load the real brainrot image (same proxy the log feed uses).
-    // If the wiki doesn't have it, we just keep the emoji glyph shown above.
-    const img = row.querySelector(".sniper-row-img img");
-    img.src = wikiImg(a.name);
-    img.alt = a.name;
-    img.addEventListener("error", () => { row.querySelector(".sniper-row-img").classList.add("broken"); }, { once: true });
-    img.addEventListener("load", () => { row.querySelector(".sniper-row-img").classList.add("loaded"); }, { once: true });
+      const img = card.querySelector(".og-log-img img");
+      img.src = wikiImg(a.name);
+      img.addEventListener("error", () => { card.querySelector(".og-log-img").classList.add("broken"); }, { once: true });
+      img.addEventListener("load",  () => { card.querySelector(".og-log-img").classList.add("loaded"); }, { once: true });
 
-    return row;
+      feed.appendChild(card);
+    });
+
+    section.appendChild(feed);
+    mount.appendChild(section);
+  });
+
+  /* ══════════════════════════════════════════════════════════════════
+     EMBEDDED ADMIN ABUSE NOTIFIER — countdown logic
+  ══════════════════════════════════════════════════════════════════ */
+  const EVENTS = [
+    { dow:2, hour:18, min:0, name:"TACO TUESDAY",    short:"Taco Tuesday",    emoji:"🌮", cls:"taco", dayCopy:"Tuesday",  timeCopy:"6:00 PM ET" },
+    { dow:6, hour:15, min:0, name:"SATURDAY UPDATE",  short:"Saturday Update", emoji:"🎮", cls:"sat",  dayCopy:"Saturday", timeCopy:"3:00 PM ET" },
+  ];
+
+  function getNextOccurrence(ev) {
+    const fmt = new Intl.DateTimeFormat("en-US", {
+      timeZone:"America/New_York",
+      year:"numeric",month:"2-digit",day:"2-digit",
+      hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false,
+    });
+    const p = {}; fmt.formatToParts(new Date()).forEach(x => { p[x.type] = parseInt(x.value,10); });
+    const nowET = new Date(Date.UTC(p.year, p.month-1, p.day, p.hour, p.minute, p.second));
+    let daysAhead = ev.dow - nowET.getUTCDay();
+    if (daysAhead < 0) daysAhead += 7;
+    if (daysAhead === 0 && (p.hour > ev.hour || (p.hour === ev.hour && p.minute >= ev.min))) daysAhead = 7;
+    const probe = new Date(Date.UTC(p.year, p.month-1, p.day+daysAhead, ev.hour, ev.min, 0));
+    const pp = {}; fmt.formatToParts(probe).forEach(x => { pp[x.type] = parseInt(x.value,10); });
+    const off = probe.getUTCHours() - (pp.hour % 24);
+    return new Date(Date.UTC(p.year, p.month-1, p.day+daysAhead, ev.hour+off, ev.min, 0));
   }
 
-  function render() {
-    mount.innerHTML = "";
-    for (const cat of ["og", "dragon", "small"]) {
-      const data = SNIPER_DATA[cat];
-      const section = document.createElement("section");
-      section.className = `sniper-cat sniper-cat-${cat}`;
-      section.dataset.cat = cat;
+  function pad(n) { return String(Math.max(0,n)).padStart(2,"0"); }
+  function msToHms(ms) { const s=Math.max(0,Math.floor(ms/1000)); return { d:Math.floor(s/86400), h:Math.floor((s%86400)/3600), m:Math.floor((s%3600)/60), s:s%60 }; }
+  function shortCd(ms) { const t=msToHms(ms); return t.d>0 ? t.d+"d "+pad(t.h)+"h" : t.h>0 ? pad(t.h)+"h "+pad(t.m)+"m" : pad(t.m)+"m "+pad(t.s)+"s"; }
 
-      const header = document.createElement("div");
-      header.className = "sniper-cat-header";
-      header.innerHTML = `
-        <span class="sniper-cat-dot"></span>
-        <span class="sniper-cat-title">${data.label}</span>
-        <span class="sniper-cat-count">${data.animals.length}</span>`;
-      section.appendChild(header);
+  const $card   = document.getElementById("ogNotifierCard");
+  const $alert  = document.getElementById("ogAlertBanner");
+  const $alertT = document.getElementById("ogAlertText");
+  const $pill   = document.getElementById("ogEventPill");
+  const $name   = document.getElementById("ogEventName");
+  const $day    = document.getElementById("ogEventDay");
+  const $time   = document.getElementById("ogEventTime");
+  const $d = document.getElementById("ogCdDays");
+  const $h = document.getElementById("ogCdHours");
+  const $m = document.getElementById("ogCdMins");
+  const $s = document.getElementById("ogCdSecs");
+  const $upName = document.getElementById("ogUpcomingName");
+  const $upCd   = document.getElementById("ogUpcomingCd");
 
-      const list = document.createElement("div");
-      list.className = "sniper-cat-list";
-      data.animals.forEach(a => list.appendChild(buildRow(cat, a)));
-      section.appendChild(list);
+  if (!$card) return;
 
-      mount.appendChild(section);
-    }
+  function applyEv(ev, isAlert) {
+    const cls = isAlert ? "alert" : ev.cls;
+    $card.className = "og-notifier-card " + cls;
+    $pill.className = "og-event-pill " + cls;
+    $pill.textContent = ev.emoji + " " + ev.short;
+    $name.className = "og-event-name " + cls;
+    $name.textContent = isAlert ? "🚨 " + ev.name + " 🚨" : ev.name;
+    $day.textContent = ev.dayCopy;
+    $time.textContent = ev.timeCopy;
   }
 
-  render();
+  function tick() {
+    const now = Date.now();
+    const targets = EVENTS.map(ev => ({ ev, ms: getNextOccurrence(ev)-now })).sort((a,b) => a.ms-b.ms);
+    const pri = targets[0], sec = targets[1];
+    const msL = Math.max(0, pri.ms);
+    const isAlert = msL > 0 && msL <= 15*60*1000;
+    applyEv(pri.ev, isAlert);
+    const t = msToHms(msL);
+    $d.textContent = pad(t.d); $h.textContent = pad(t.h); $m.textContent = pad(t.m); $s.textContent = pad(t.s);
+    if (isAlert) { $alert.classList.add("visible"); $alertT.textContent = "⚠️ " + pri.ev.short + " starts in ~" + Math.ceil(msL/60000) + " min!"; }
+    else { $alert.classList.remove("visible"); }
+    if (sec) { $upName.textContent = sec.ev.emoji + " " + sec.ev.short; $upCd.textContent = shortCd(Math.max(0,sec.ms)); }
+  }
+
+  tick();
+  setInterval(tick, 1000);
 })();
