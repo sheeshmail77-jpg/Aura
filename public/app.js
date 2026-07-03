@@ -1039,7 +1039,7 @@
   // MAIN APP (log feed)
   // ═══════════════════════════════════════════════════════════════════════════════
   const DAY_MS       = 24 * 60 * 60 * 1000;
-  const MAX_PER_FEED = 80;
+  const MAX_PER_FEED = 5000;
   
   const feeds = {
     og:     { list: document.getElementById("listOg"),     empty: document.getElementById("emptyOg"),     count: document.getElementById("countOg") },
@@ -1469,6 +1469,32 @@
     statusTick = setInterval(pollPresence, 30000);
     pollPresence();
   }
+
+  /* ── Keep-alive: restart everything when tab comes back ──────────────── */
+  /* Browsers throttle setInterval in hidden tabs, so the online tracker     */
+  /* and WebSocket silently die after a few minutes. This fixes that.        */
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden || !appRunning) return;
+    // Tab is visible again — immediately re-poll & reconnect if needed
+    pollPresence();
+    loadSnapshot();
+    // Restart status interval cleanly so it doesn't drift
+    if (statusTick) clearInterval(statusTick);
+    statusTick = setInterval(pollPresence, 30000);
+    // If WebSocket died while hidden, reconnect now
+    if (!ws || ws.readyState > 1) { // CLOSING or CLOSED
+      connect();
+    }
+  });
+
+  /* Fallback: every 60 s, if the WS is dead, force-reconnect.              */
+  /* Catches edge cases where the socket closes without triggering "close".  */
+  setInterval(() => {
+    if (!appRunning) return;
+    if (!ws || ws.readyState > 1) connect();
+    // Re-poll presence in case the 30 s interval drifted from throttling
+    pollPresence();
+  }, 60000);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GET ROLE (Discord verification)
