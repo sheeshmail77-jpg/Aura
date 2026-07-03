@@ -1006,6 +1006,22 @@
   
   app.get("/api/health", (req, res) => res.json({ ok: true, uptime: process.uptime() }));
 
+  // TEMPORARY diagnostic — confirms whether the game is actually sending a
+  // `traits` array on logged animals. Gated by the same ingest token the game
+  // uses (no new secret needed). Safe to delete once the trait issue is fixed.
+  app.get("/api/_debug/last-traits", (req, res) => {
+    if (INGEST_TOKEN) {
+      const tok = req.get("x-ingest-token") || req.query.token;
+      if (tok !== INGEST_TOKEN) return res.status(401).json({ error: "invalid token" });
+    }
+    const sample = logs.slice(0, 10).map(l => ({
+      id: l.id,
+      loggedAt: l.loggedAt,
+      animals: l.animals.map(a => ({ name: a.name, traits: a.traits, traitsCount: Array.isArray(a.traits) ? a.traits.length : null })),
+    }));
+    res.json({ totalLogs: logs.length, sample });
+  });
+
   // ─── Roblox presence proxy ─────────────────────────────────────────────────────
   // POST /api/presence  { userIds: [number, ...] }
   // Calls https://presence.roblox.com/v1/presence/users with the server's
