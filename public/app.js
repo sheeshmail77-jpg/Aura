@@ -1178,33 +1178,7 @@
         gen.textContent = a.generation;
         row.appendChild(gen);
       }
-      // Trait pills with real icons
-      if (Array.isArray(a.traits) && a.traits.length) {
-        const traitWrap = document.createElement("span");
-        traitWrap.className = "trait-pills";
-        a.traits.slice(0, 4).forEach(t => {
-          const ti = getTraitInfo(t);
-          const pill = document.createElement("span");
-          pill.className = "badge trait-pill";
-          pill.style.borderColor = ti.color;
-          if (ti.icon) {
-            const img = document.createElement("img");
-            img.src = ti.icon; img.alt = t;
-            img.className = "trait-icon";
-            pill.appendChild(img);
-          }
-          pill.appendChild(document.createTextNode(t));
-          pill.title = t + " (" + ti.mult + "×)";
-          traitWrap.appendChild(pill);
-        });
-        if (a.traits.length > 4) {
-          const more = document.createElement("span");
-          more.className = "badge trait-pill trait-more";
-          more.textContent = "+" + (a.traits.length - 4);
-          traitWrap.appendChild(more);
-        }
-        row.appendChild(traitWrap);
-      }
+      // Traits are shown in the Info panel only (not on the card) — see openInfoModal().
       rows.appendChild(row);
     });
   
@@ -1296,6 +1270,8 @@
     "Orange Egg":"#ff9800","Green Egg":"#4caf50","Blue Egg":"#2196f3","Pink Egg":"#e91e63",
   };
   let TRAIT_DATA = {};  // { name: { icon, mult, color } } — filled from server
+  let traitDataLoaded = false;
+  let traitDataPromise = null;
 
   async function loadTraitData() {
     try {
@@ -1304,15 +1280,18 @@
       const data = await res.json();
       for (const [name, info] of Object.entries(data)) {
         TRAIT_DATA[name] = {
-          icon:  info.icon || null,
+          // Route through our own image proxy (like avatars) so the Roblox CDN
+          // image always loads even if hotlinking is restricted in the browser.
+          icon:  info.icon ? proxyImg(info.icon) : null,
           mult:  (typeof info.mult === "number") ? info.mult : "?",
           color: TRAIT_COLORS[name] || "#9aa0b4",
         };
       }
+      traitDataLoaded = true;
     } catch (_) {}
   }
   // Fetch trait data on startup, refresh every 5 minutes
-  loadTraitData();
+  traitDataPromise = loadTraitData();
   setInterval(loadTraitData, 5 * 60 * 1000);
 
   function getTraitInfo(name) {
@@ -1348,7 +1327,14 @@
     return m ? parseInt(m[1], 10) : null;
   }
 
-  function openInfoModal(entry) {
+  async function openInfoModal(entry) {
+    // Make sure real trait icons/multipliers are loaded before we build the
+    // trait chips below — avoids a first-open flash of missing icons.
+    if (!traitDataLoaded) {
+      try { await traitDataPromise; } catch (_) {}
+      if (!traitDataLoaded) { try { await loadTraitData(); } catch (_) {} }
+    }
+
     const animals = Array.isArray(entry.animals) && entry.animals.length
       ? entry.animals
       : [{ name: "?", mutation: "Normal", generation: null, tier: 1 }];
