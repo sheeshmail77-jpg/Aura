@@ -1259,6 +1259,76 @@
     fetchUrl(rawUrl, 0);
   });
   
+  // ─── trait data (populated by game client, served to frontend) ────────────────
+  let traitDataCache = {};  // { traitName: { mult, assetId, icon } }
+
+  function resolveRobloxIcons(traitMap) {
+    // Collect all unique asset IDs
+    const assetIds = [];
+    for (const [name, info] of Object.entries(traitMap)) {
+      if (info.assetId) assetIds.push(info.assetId);
+    }
+    if (!assetIds.length) return;
+
+    // Batch resolve in chunks of 50 via Roblox thumbnails API
+    const batchSize = 50;
+    for (let i = 0; i < assetIds.length; i += batchSize) {
+      const batch = assetIds.slice(i, i + batchSize);
+      const url = `https://thumbnails.roblox.com/v1/assets?assetIds=${batch.join(",")}&size=150x150&format=Png&isCircular=false`;
+      const req = https.get(url, (resp) => {
+        let body = "";
+        resp.on("data", (d) => body += d);
+        resp.on("end", () => {
+          try {
+            const json = JSON.parse(body);
+            if (json.data) {
+              const idToUrl = {};
+              for (const item of json.data) {
+                if (item.imageUrl) idToUrl[String(item.targetId)] = item.imageUrl;
+              }
+              // Map resolved URLs back to trait entries
+              for (const [name, info] of Object.entries(traitMap)) {
+                if (info.assetId && idToUrl[info.assetId]) {
+                  info.icon = idToUrl[info.assetId];
+                }
+              }
+            }
+          } catch (_) {}
+        });
+      });
+      req.on("error", () => {});
+    }
+  }
+
+  app.post("/api/trait-data", (req, res) => {
+    if (INGEST_TOKEN) {
+      const tok = req.get("x-ingest-token") || req.query.token;
+      if (tok !== INGEST_TOKEN) return res.status(401).json({ error: "invalid token" });
+    }
+    const traits = req.body && req.body.traits;
+    if (!traits || typeof traits !== "object") return res.status(400).json({ error: "no trait data" });
+
+    // Normalize and store
+    const clean = {};
+    for (const [name, info] of Object.entries(traits)) {
+      if (typeof name !== "string" || !name) continue;
+      clean[name] = {
+        mult:    typeof info.mult === "number" ? Math.round(info.mult * 100) / 100 : 1,
+        assetId: typeof info.assetId === "string" ? info.assetId : null,
+        icon:    null,
+      };
+    }
+    traitDataCache = clean;
+    // Resolve Roblox asset IDs to CDN image URLs in background
+    resolveRobloxIcons(traitDataCache);
+    console.log(`[trait-data] Received ${Object.keys(clean).length} traits from game client`);
+    res.json({ ok: true, count: Object.keys(clean).length });
+  });
+
+  app.get("/api/trait-data", (req, res) => {
+    res.json(traitDataCache);
+  });
+
   // ─── ingest route (INGEST_TOKEN protected) ────────────────────────────────────
   function clampStr(v, n, fallback) {
     if (v === undefined || v === null) return fallback !== undefined ? fallback : null;
