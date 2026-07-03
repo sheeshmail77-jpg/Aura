@@ -1963,68 +1963,44 @@
     { tier: "D", name: "Skibidi Toilet",      emoji: "🚽", desc: "Bottom of the barrel — low value, low rarity, almost no demand." },
   ];
 
-  /* ── Build the OG sections ───────────────────────────────────────── */
-  const mount = document.getElementById("ogSections");
-  if (!mount) return;
+  /* ── Build compact sidebar tier list ────────────────────────────── */
+  const sidebarBody = document.getElementById("ogSidebarBody");
 
   // Group by tier, preserving order S → B → C → D
   const groups = {};
   OG_ANIMALS.forEach(a => { (groups[a.tier] = groups[a.tier] || []).push(a); });
 
-  ["S","B","C","D"].forEach(tier => {
-    const list = groups[tier];
-    if (!list || !list.length) return;
-    const tm = TIER_META[tier];
+  if (sidebarBody) {
+    ["S","B","C","D"].forEach(tier => {
+      const list = groups[tier];
+      if (!list || !list.length) return;
+      const tm = TIER_META[tier];
 
-    const section = document.createElement("section");
-    section.className = "og-tier-section";
-    section.dataset.tier = tier;
+      const grp = document.createElement("div");
+      grp.className = "og-sb-group";
 
-    /* section header */
-    const hdr = document.createElement("div");
-    hdr.className = "og-tier-header";
-    hdr.innerHTML = `
-      <span class="og-tier-dot" style="background:${tm.color};box-shadow:0 0 8px ${tm.color}55"></span>
-      <span class="og-tier-title" style="color:${tm.color}">${tm.label}</span>
-      <span class="og-tier-count">${list.length}</span>`;
-    section.appendChild(hdr);
+      /* tier header */
+      const hdr = document.createElement("div");
+      hdr.className = "og-sb-group-head";
+      hdr.innerHTML = `
+        <span class="og-sb-group-dot" style="background:${tm.color};box-shadow:0 0 6px ${tm.color}55"></span>
+        <span class="og-sb-group-label" style="color:${tm.color}">${tm.label}</span>`;
+      grp.appendChild(hdr);
 
-    /* cards list */
-    const feed = document.createElement("div");
-    feed.className = "og-tier-feed";
+      /* animal rows */
+      list.forEach(a => {
+        const row = document.createElement("div");
+        row.className = "og-sb-row";
+        row.innerHTML = `
+          <span class="og-sb-emoji">${a.emoji}</span>
+          <span class="og-sb-name">${esc(a.name)}</span>
+          <span class="og-sb-badge" style="color:${tm.color};border-color:${tm.border};background:${tm.bg}">${tier}</span>`;
+        grp.appendChild(row);
+      });
 
-    list.forEach(a => {
-      const card = document.createElement("article");
-      card.className = "og-log-card";
-      card.dataset.tier = tier;
-      card.style.setProperty("--tier-color", tm.color);
-      card.style.setProperty("--tier-bg", tm.bg);
-      card.style.setProperty("--tier-border", tm.border);
-
-      card.innerHTML = `
-        <div class="og-log-accent"></div>
-        <div class="og-log-top">
-          <div class="og-log-img" data-fallback="${a.emoji}">
-            <img alt="${esc(a.name)}" loading="lazy" />
-          </div>
-          <div class="og-log-meta">
-            <span class="og-log-tier">${tier}</span>
-            <span class="og-log-name">${esc(a.name)}</span>
-          </div>
-        </div>
-        <p class="og-log-desc">${esc(a.desc)}</p>`;
-
-      const img = card.querySelector(".og-log-img img");
-      img.src = wikiImg(a.name);
-      img.addEventListener("error", () => { card.querySelector(".og-log-img").classList.add("broken"); }, { once: true });
-      img.addEventListener("load",  () => { card.querySelector(".og-log-img").classList.add("loaded"); }, { once: true });
-
-      feed.appendChild(card);
+      sidebarBody.appendChild(grp);
     });
-
-    section.appendChild(feed);
-    mount.appendChild(section);
-  });
+  }
 
   /* ══════════════════════════════════════════════════════════════════
      PER-ANIMAL OG LOG FEEDS
@@ -2095,9 +2071,6 @@
   const $alert  = document.getElementById("ogAlertBanner");
   const $alertT = document.getElementById("ogAlertText");
   const $pill   = document.getElementById("ogEventPill");
-  const $name   = document.getElementById("ogEventName");
-  const $day    = document.getElementById("ogEventDay");
-  const $time   = document.getElementById("ogEventTime");
   const $d = document.getElementById("ogCdDays");
   const $h = document.getElementById("ogCdHours");
   const $m = document.getElementById("ogCdMins");
@@ -2109,13 +2082,8 @@
 
   function applyEv(ev, isAlert) {
     const cls = isAlert ? "alert" : ev.cls;
-    $card.className = "og-notifier-card " + cls;
-    $pill.className = "og-event-pill " + cls;
-    $pill.textContent = ev.emoji + " " + ev.short;
-    $name.className = "og-event-name " + cls;
-    $name.textContent = isAlert ? "🚨 " + ev.name + " 🚨" : ev.name;
-    $day.textContent = ev.dayCopy;
-    $time.textContent = ev.timeCopy;
+    $card.className = "og-notif-strip " + cls;
+    if ($pill) $pill.textContent = ev.emoji + " " + ev.short;
   }
 
   function tick() {
