@@ -1178,6 +1178,33 @@
         gen.textContent = a.generation;
         row.appendChild(gen);
       }
+      // Trait pills with real icons
+      if (Array.isArray(a.traits) && a.traits.length) {
+        const traitWrap = document.createElement("span");
+        traitWrap.className = "trait-pills";
+        a.traits.slice(0, 4).forEach(t => {
+          const ti = getTraitInfo(t);
+          const pill = document.createElement("span");
+          pill.className = "badge trait-pill";
+          pill.style.borderColor = ti.color;
+          if (ti.icon) {
+            const img = document.createElement("img");
+            img.src = ti.icon; img.alt = t;
+            img.className = "trait-icon";
+            pill.appendChild(img);
+          }
+          pill.appendChild(document.createTextNode(t));
+          pill.title = t + " (" + ti.mult + "×)";
+          traitWrap.appendChild(pill);
+        });
+        if (a.traits.length > 4) {
+          const more = document.createElement("span");
+          more.className = "badge trait-pill trait-more";
+          more.textContent = "+" + (a.traits.length - 4);
+          traitWrap.appendChild(more);
+        }
+        row.appendChild(traitWrap);
+      }
       rows.appendChild(row);
     });
   
@@ -1246,6 +1273,53 @@
   const INFO_BODY    = document.getElementById("infoModalBody");
   document.getElementById("infoClose").addEventListener("click", () => INFO_OVERLAY.setAttribute("hidden", ""));
   INFO_OVERLAY.addEventListener("click", e => { if (e.target === INFO_OVERLAY) INFO_OVERLAY.setAttribute("hidden", ""); });
+
+  // ── Trait data (icons, multipliers, colors) ──────────────────────────────────
+  // Roblox asset IDs converted to web proxy URLs; emoji fallback always available
+  // Trait data — populated dynamically from the game via /api/trait-data.
+  // Fallback accent colors (cosmetic only, not from game).
+  const TRAIT_COLORS = {
+    "Taco":"#f5a623","Nyan":"#ff69b4","Galactic":"#7b68ee","Fireworks":"#ff4500",
+    "Zombie":"#6b8e23","Claws":"#c0392b","Glitched":"#00ff88","Bubblegum":"#ff77aa",
+    "Fire":"#ff6600","Wet":"#3498db","Snowy":"#aee8f5","Cometstruck":"#ff3366",
+    "Explosive":"#ff2200","Disco":"#e040fb","10B":"#00e5ff","Shark Fin":"#607d8b",
+    "Matteo Hat":"#795548","Brazil":"#009c3b","Sleepy":"#9c27b0","Lightning":"#fdd835",
+    "UFO":"#76ff03","Spider":"#424242","Strawberry":"#e91e63","Paint":"#ff9800",
+    "Skeleton":"#f5f5f5","Sombrero":"#f4511e","Tie":"#1565c0","Witch Hat":"#6a1b9a",
+    "Indonesia":"#e53935","Meowl":"#8d6e63","RIP Gravestone":"#78909c",
+    "Jackolantern Pet":"#ff6f00","Santa Hat":"#c62828","Reindeer Pet":"#6d4c41",
+    "Skibidi":"#b0bec5","26":"#5c6bc0","Rose":"#d32f2f",":3":"#ffab91",
+    "Chocolate":"#5d4037","Halo":"#ffd54f","Lucky":"#43a047","Granny":"#bcaaa4",
+    "Bunny Ears":"#f8bbd0","John Pork":"#d7ccc8","Candy":"#ec407a","Cursed":"#b71c1c",
+    "Orange Balloon":"#ff9800","Green Balloon":"#4caf50","Blue Balloon":"#2196f3",
+    "Red Balloon":"#f44336","Pink Balloon":"#e91e63","Rainbow Balloon":"#ff50ff",
+    "Orange Egg":"#ff9800","Green Egg":"#4caf50","Blue Egg":"#2196f3","Pink Egg":"#e91e63",
+  };
+  let TRAIT_DATA = {};  // { name: { icon, mult, color } } — filled from server
+
+  async function loadTraitData() {
+    try {
+      const res = await fetch("/api/trait-data");
+      if (!res.ok) return;
+      const data = await res.json();
+      for (const [name, info] of Object.entries(data)) {
+        TRAIT_DATA[name] = {
+          icon:  info.icon || null,
+          mult:  (typeof info.mult === "number") ? info.mult : "?",
+          color: TRAIT_COLORS[name] || "#9aa0b4",
+        };
+      }
+    } catch (_) {}
+  }
+  // Fetch trait data on startup, refresh every 5 minutes
+  loadTraitData();
+  setInterval(loadTraitData, 5 * 60 * 1000);
+
+  function getTraitInfo(name) {
+    const d = TRAIT_DATA[name];
+    if (d) return d;
+    return { icon: null, mult: "?", color: TRAIT_COLORS[name] || "#9aa0b4" };
+  }
 
   // Mutation multipliers (community-known values for Steal a Brainrot)
   const MUTATION_MULTI = {
@@ -1328,6 +1402,23 @@
               <span class="info-row-right info-mult info-mult-total">${totalLabel}</span>
             </div>
           </div>
+          ${(Array.isArray(animal.traits) && animal.traits.length) ? `
+          <div class="info-traits-section">
+            <div class="info-traits-header">🧬 Traits <span class="info-traits-count">${animal.traits.length}</span></div>
+            <div class="info-traits-grid">
+              ${animal.traits.map(t => {
+                const ti = getTraitInfo(t);
+                const iconHtml = ti.icon
+                  ? `<img class="info-trait-icon" src="${ti.icon}" alt="${escHtml(t)}">`
+                  : `<span class="info-trait-emoji">${escHtml(t).slice(0,2)}</span>`;
+                return `<div class="info-trait-chip" style="border-color:${ti.color}">
+                  ${iconHtml}
+                  <span class="info-trait-name">${escHtml(t)}</span>
+                  <span class="info-trait-mult" style="color:${ti.color}">${ti.mult}×</span>
+                </div>`;
+              }).join("")}
+            </div>
+          </div>` : ""}
         </div>`;
     }
 
