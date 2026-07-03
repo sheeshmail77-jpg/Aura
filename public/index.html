@@ -486,71 +486,56 @@
         ════════════════════════════════════════════════════════════════════ -->
                 <div id="viewOgSniper" hidden>
 
-          <div class="og-spine">
-            <!-- ═══ EMBEDDED ADMIN ABUSE NOTIFIER ═══ -->
-            <section class="og-notifier-card og-spine-node" id="ogNotifierCard">
-              <div class="og-notifier-glow"></div>
-              <div class="og-notifier-top">
-                <div class="og-notifier-badge">
-                  <span class="og-notifier-dot"></span>
-                  Admin Abuse Notifier
+          <!-- ═══ OG SNIPER DASHBOARD ═══ -->
+          <div class="og-dash">
+
+            <!-- LEFT SIDEBAR: Compact Tier List -->
+            <aside class="og-sidebar" id="ogSidebar">
+              <div class="og-sidebar-head">
+                <span class="og-sidebar-icon">🎯</span>
+                <span class="og-sidebar-title">OG TIER LIST</span>
+              </div>
+              <div class="og-sidebar-body" id="ogSidebarBody">
+                <!-- filled by app.js — compact animal rows grouped by tier -->
+              </div>
+            </aside>
+
+            <!-- RIGHT MAIN AREA -->
+            <div class="og-main">
+
+              <!-- COMPACT NOTIFIER STRIP -->
+              <section class="og-notif-strip" id="ogNotifierCard">
+                <div class="og-notif-strip-left">
+                  <span class="og-notif-dot"></span>
+                  <span class="og-notif-event" id="ogEventPill">🌮 Taco Tuesday</span>
                 </div>
-                <span class="og-notifier-live"><span class="og-live-dot"></span> LIVE</span>
-              </div>
-
-              <!-- Alert banner (< 15 min) -->
-              <div class="og-alert-banner" id="ogAlertBanner">
-                ⚠️ <span id="ogAlertText">Admin abuse is about to happen!</span>
-              </div>
-
-              <!-- Event pill + name -->
-              <div class="og-event-row">
-                <div class="og-event-pill taco" id="ogEventPill">🌮 Taco Tuesday</div>
-              </div>
-              <div class="og-event-name taco" id="ogEventName">TACO TUESDAY</div>
-
-              <!-- Countdown -->
-              <div class="og-countdown">
-                <div class="og-cd-seg"><span class="og-cd-num" id="ogCdDays">00</span><span class="og-cd-label">Days</span></div>
-                <span class="og-cd-colon">:</span>
-                <div class="og-cd-seg"><span class="og-cd-num" id="ogCdHours">00</span><span class="og-cd-label">Hours</span></div>
-                <span class="og-cd-colon">:</span>
-                <div class="og-cd-seg"><span class="og-cd-num" id="ogCdMins">00</span><span class="og-cd-label">Mins</span></div>
-                <span class="og-cd-colon">:</span>
-                <div class="og-cd-seg"><span class="og-cd-num" id="ogCdSecs">00</span><span class="og-cd-label">Secs</span></div>
-              </div>
-
-              <!-- Info row -->
-              <div class="og-info-row" id="ogInfoRow">
-                Every <span class="og-chip" id="ogEventDay">Tuesday</span> at <span class="og-chip" id="ogEventTime">6:00 PM ET</span>
-              </div>
-
-              <!-- Next-up preview -->
-              <div class="og-upcoming" id="ogUpcoming">
-                <div>
-                  <div class="og-upcoming-label">After this, next up</div>
-                  <div class="og-upcoming-name" id="ogUpcomingName">Saturday Update 🎮</div>
+                <div class="og-notif-strip-cd">
+                  <span class="og-cd-n" id="ogCdDays">00</span><span class="og-cd-u">d</span>
+                  <span class="og-cd-sep">:</span>
+                  <span class="og-cd-n" id="ogCdHours">00</span><span class="og-cd-u">h</span>
+                  <span class="og-cd-sep">:</span>
+                  <span class="og-cd-n" id="ogCdMins">00</span><span class="og-cd-u">m</span>
+                  <span class="og-cd-sep">:</span>
+                  <span class="og-cd-n" id="ogCdSecs">00</span><span class="og-cd-u">s</span>
                 </div>
-                <div class="og-upcoming-cd" id="ogUpcomingCd">—</div>
+                <div class="og-notif-strip-right">
+                  <span class="og-notif-next" id="ogUpcomingName">Saturday Update 🎮</span>
+                  <span class="og-notif-next-cd" id="ogUpcomingCd">—</span>
+                </div>
+                <!-- Alert banner (< 15 min) -->
+                <div class="og-notif-alert" id="ogAlertBanner">
+                  ⚠️ <span id="ogAlertText">Admin abuse is about to happen!</span>
+                </div>
+              </section>
+
+              <!-- PER-ANIMAL LOG FEEDS -->
+              <div class="og-feeds" id="ogLogs">
+                <!-- filled by app.js — one feed column per OG animal -->
               </div>
-            </section>
 
-            <!-- ═══ connector label ═══ -->
-            <div class="og-spine-label">OG TIER LIST</div>
+            </div><!-- /og-main -->
 
-            <!-- ═══ OG TIER SECTIONS (log-card style) ═══ -->
-            <div class="og-sections og-spine-node" id="ogSections">
-              <!-- filled by app.js -->
-            </div>
-
-            <!-- ═══ connector label ═══ -->
-            <div class="og-spine-label">OG LOGS</div>
-
-            <!-- ═══ PER-ANIMAL LOG FEEDS ═══ -->
-            <div class="og-logs og-spine-node" id="ogLogs">
-              <!-- filled by app.js — one feed column per OG animal -->
-            </div>
-          </div><!-- /og-spine -->
+          </div><!-- /og-dash -->
 
         </div><!-- /viewOgSniper -->
 
