@@ -1400,7 +1400,6 @@
                 return `<div class="info-trait-chip" style="border-color:${ti.color}">
                   ${iconHtml}
                   <span class="info-trait-name">${escHtml(t)}</span>
-                  <span class="info-trait-mult" style="color:${ti.color}">${ti.mult}×</span>
                 </div>`;
               }).join("")}
             </div>
