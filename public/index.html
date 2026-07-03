@@ -102,7 +102,8 @@
             </h2>
             <button class="modal-close" id="adminClose" aria-label="Close">✕</button>
           </div>
-  
+
+          <div class="modal-body admin-modal-body">
           <!-- ── Create Login ─────────────────────────────────────────────── -->
           <section class="admin-section">
             <h3>Create Login</h3>
@@ -201,7 +202,8 @@
               <div class="user-list-empty">Loading…</div>
             </div>
           </section>
-  
+          </div><!-- /admin-modal-body -->
+
           <!-- ── Reset Password nested modal ─────────────────────────────── -->
           <div id="resetPwOverlay" class="nested-modal" hidden>
             <div class="nested-modal-card">
@@ -494,52 +496,18 @@
             <div class="sniper-eyebrow">&#x1F3AF; Tool</div>
             <h2 class="sniper-title">OG <span class="sniper-title-grad">SNIPER</span></h2>
             <p class="sniper-sub">Ranked worst to best &#x2014; know what you&#39;re sniping before you snipe it.</p>
+            <div class="sniper-hero-actions">
+              <button type="button" class="btn-notifier-mini" onclick="window.open('/notifier.html','_blank','noopener')">
+                <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13">
+                  <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zm0 16a2 2 0 01-2-2h4a2 2 0 01-2 2z"/>
+                </svg>
+                Admin Abuse Notifier
+              </button>
+            </div>
           </div>
-          <div class="tier-grid">
-            <div class="tier-card" data-tier="D">
-              <div class="tier-rank">D &middot; WORST</div>
-              <div class="tier-emoji">&#x1F6BD;</div>
-              <div class="tier-name">Skibidi Toilet</div>
-              <div class="tier-desc">The bottom of the barrel. Low value, low rarity, high cringe. Skip unless desperate.</div>
-              <div class="tier-stats">
-                <div class="tier-stat-row"><div class="tier-stat-label"><span>Value</span><span>12%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:12%"></div></div></div>
-                <div class="tier-stat-row"><div class="tier-stat-label"><span>Rarity</span><span>8%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:8%"></div></div></div>
-                <div class="tier-stat-row"><div class="tier-stat-label"><span>Demand</span><span>5%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:5%"></div></div></div>
-              </div>
-            </div>
-            <div class="tier-card" data-tier="C">
-              <div class="tier-rank">C &middot; BAD</div>
-              <div class="tier-emoji">&#x1F4F1;</div>
-              <div class="tier-name">John Pork</div>
-              <div class="tier-desc">Mid at best. Niche appeal, forgettable hold. Not the worst pick, but you can do better.</div>
-              <div class="tier-stats">
-                <div class="tier-stat-row"><div class="tier-stat-label"><span>Value</span><span>30%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:30%"></div></div></div>
-                <div class="tier-stat-row"><div class="tier-stat-label"><span>Rarity</span><span>24%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:24%"></div></div></div>
-                <div class="tier-stat-row"><div class="tier-stat-label"><span>Demand</span><span>20%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:20%"></div></div></div>
-              </div>
-            </div>
-            <div class="tier-card" data-tier="B">
-              <div class="tier-rank">B &middot; SOLID</div>
-              <div class="tier-emoji">&#x1F989;</div>
-              <div class="tier-name">Meowl</div>
-              <div class="tier-desc">Solid choice. Decent rarity, respectable demand. A reliable snipe for steady players.</div>
-              <div class="tier-stats">
-                <div class="tier-stat-row"><div class="tier-stat-label"><span>Value</span><span>62%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:62%"></div></div></div>
-                <div class="tier-stat-row"><div class="tier-stat-label"><span>Rarity</span><span>55%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:55%"></div></div></div>
-                <div class="tier-stat-row"><div class="tier-stat-label"><span>Demand</span><span>68%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:68%"></div></div></div>
-              </div>
-            </div>
-            <div class="tier-card" data-tier="S">
-              <div class="tier-rank">S &middot; BEST</div>
-              <div class="tier-emoji">&#x1F353;</div>
-              <div class="tier-name">Strawberry Elephant</div>
-              <div class="tier-desc">The crown jewel. High rarity, insane demand, top-tier value. Drop everything and go.</div>
-              <div class="tier-stats">
-                <div class="tier-stat-row"><div class="tier-stat-label"><span>Value</span><span>96%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:96%"></div></div></div>
-                <div class="tier-stat-row"><div class="tier-stat-label"><span>Rarity</span><span>94%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:94%"></div></div></div>
-                <div class="tier-stat-row"><div class="tier-stat-label"><span>Demand</span><span>98%</span></div><div class="tier-stat-bar"><div class="tier-stat-fill" style="width:98%"></div></div></div>
-              </div>
-            </div>
+
+          <div class="sniper-sections" id="sniperSections">
+            <!-- filled in by app.js (renderSniperTiers) -->
           </div>
         </div><!-- /viewOgSniper -->
 
