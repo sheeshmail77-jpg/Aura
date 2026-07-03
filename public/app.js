@@ -2027,6 +2027,42 @@
   });
 
   /* ══════════════════════════════════════════════════════════════════
+     PER-ANIMAL OG LOG FEEDS
+  ══════════════════════════════════════════════════════════════════ */
+  const logMount = document.getElementById("ogLogs");
+  if (logMount) {
+    OG_ANIMALS.forEach(a => {
+      const tm = TIER_META[a.tier] || TIER_META.D;
+
+      const col = document.createElement("div");
+      col.className = "og-log-col";
+      col.dataset.animal = a.name;
+      col.style.setProperty("--animal-color", tm.color);
+
+      /* header */
+      const hdr = document.createElement("div");
+      hdr.className = "og-log-col-header";
+      hdr.innerHTML = `
+        <div class="og-log-col-id">
+          <span class="og-log-col-emoji">${a.emoji}</span>
+          <span class="og-log-col-name">${esc(a.name)}</span>
+        </div>
+        <span class="og-log-col-tier" style="color:${tm.color};border-color:${tm.border};background:${tm.bg}">${a.tier}-TIER</span>
+        <span class="og-log-col-count" data-count="${a.name}">0</span>`;
+      col.appendChild(hdr);
+
+      /* scrollable feed list (empty — user will wire up) */
+      const list = document.createElement("div");
+      list.className = "og-log-col-feed";
+      list.id = "ogFeed_" + a.name.replace(/\s+/g, "_");
+      list.innerHTML = `<div class="og-log-col-empty">No logs yet for ${esc(a.name)}</div>`;
+      col.appendChild(list);
+
+      logMount.appendChild(col);
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
      EMBEDDED ADMIN ABUSE NOTIFIER — countdown logic
   ══════════════════════════════════════════════════════════════════ */
   const EVENTS = [
