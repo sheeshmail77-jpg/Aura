@@ -343,13 +343,6 @@
                 Admin
               </button>
   
-              <button class="btn-notifier" id="notifierBtn" aria-label="Open Admin Abuse Notifier" onclick="window.open('/notifier.html','_blank','noopener')">
-                <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-                  <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zm0 16a2 2 0 01-2-2h4a2 2 0 01-2 2z"/>
-                </svg>
-                Notifier
-              </button>
-
               <button class="btn-purchase" id="purchaseBtn" aria-label="View plans">
                 <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
                   <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/>
@@ -548,6 +541,14 @@
             <!-- ═══ OG TIER SECTIONS (log-card style) ═══ -->
             <div class="og-sections og-spine-node" id="ogSections">
               <!-- filled by app.js -->
+            </div>
+
+            <!-- ═══ connector label ═══ -->
+            <div class="og-spine-label">OG LOGS</div>
+
+            <!-- ═══ PER-ANIMAL LOG FEEDS ═══ -->
+            <div class="og-logs og-spine-node" id="ogLogs">
+              <!-- filled by app.js — one feed column per OG animal -->
             </div>
           </div><!-- /og-spine -->
 
