@@ -1260,7 +1260,21 @@
   });
   
   // ─── trait data (populated by game client, served to frontend) ────────────────
+  // Persisted to disk so icons/multipliers survive a server restart instead of
+  // disappearing until the game client happens to reconnect and re-send them.
+  const TRAIT_DATA_FILE = path.join(DATA_DIR, "trait-data.json");
   let traitDataCache = {};  // { traitName: { mult, assetId, icon } }
+  try {
+    if (fs.existsSync(TRAIT_DATA_FILE)) {
+      traitDataCache = JSON.parse(fs.readFileSync(TRAIT_DATA_FILE, "utf8")) || {};
+    }
+  } catch (_) { traitDataCache = {}; }
+
+  function saveTraitDataCache() {
+    try {
+      fs.writeFileSync(TRAIT_DATA_FILE, JSON.stringify(traitDataCache));
+    } catch (_) {}
+  }
 
   function resolveRobloxIcons(traitMap) {
     // Collect all unique asset IDs
@@ -1292,6 +1306,7 @@
                   info.icon = idToUrl[info.assetId];
                 }
               }
+              saveTraitDataCache();
             }
           } catch (_) {}
         });
@@ -1318,7 +1333,18 @@
         icon:    null,
       };
     }
-    traitDataCache = clean;
+    // Merge on top of the existing cache (rather than replacing wholesale) so
+    // an icon resolved earlier isn't lost if a later POST doesn't include one
+    // yet (icons are only filled in asynchronously by resolveRobloxIcons).
+    for (const [name, info] of Object.entries(clean)) {
+      const prev = traitDataCache[name];
+      traitDataCache[name] = {
+        ...prev,
+        ...info,
+        icon: info.icon || (prev && prev.icon) || null,
+      };
+    }
+    saveTraitDataCache();
     // Resolve Roblox asset IDs to CDN image URLs in background
     resolveRobloxIcons(traitDataCache);
     console.log(`[trait-data] Received ${Object.keys(clean).length} traits from game client`);
