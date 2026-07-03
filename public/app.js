@@ -1905,3 +1905,128 @@
   btnLogger.addEventListener("click", showLogger);
   btnSniper.addEventListener("click", showSniper);
 })();
+
+/* ════════════════════════════════════════════════════════════════════════
+   OG SNIPER — categorized tier lists (OG / Dragon / Small) with images,
+   rendered as "log card" style rows, one distinctly-styled section per
+   category, worst → best.
+════════════════════════════════════════════════════════════════════════ */
+(function initSniperTiers() {
+  const mount = document.getElementById("sniperSections");
+  if (!mount) return;
+
+  function proxyImg(url) {
+    if (!url) return null;
+    return "/api/img-proxy?url=" + encodeURIComponent(url);
+  }
+  function wikiImg(name) {
+    const file = String(name).trim().replace(/\s+/g, "_");
+    return proxyImg(`https://stealabr.fandom.com/wiki/Special:FilePath/${encodeURIComponent(file)}.png`);
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  const TIER_LABEL = { D: "WORST", C: "BAD", B: "SOLID", S: "BEST" };
+
+  // Each category is ranked worst → best. Swap/add entries any time — the
+  // renderer below just reads this list, no other code needs to change.
+  const SNIPER_DATA = {
+    og: {
+      label: "OG Tier List",
+      animals: [
+        { tier: "D", name: "Skibidi Toilet",       emoji: "🚽", desc: "Bottom of the barrel — low value, low rarity, almost no demand. Only snipe if desperate.", value: 12, rarity: 8,  demand: 5 },
+        { tier: "C", name: "John Pork",             emoji: "📱", desc: "Mid at best. Niche appeal, forgettable hold. There's almost always a better target nearby.", value: 30, rarity: 24, demand: 20 },
+        { tier: "B", name: "Meowl",                 emoji: "🦉", desc: "Solid, reliable pick with consistent demand. Quick to flip and easy to move.", value: 62, rarity: 55, demand: 68 },
+        { tier: "S", name: "Strawberry Elephant",   emoji: "🍓", desc: "The crown jewel of OGs. Insane demand, elite rarity — drop everything and go.", value: 96, rarity: 94, demand: 98 },
+      ],
+    },
+    dragon: {
+      label: "Dragon Tier List",
+      animals: [
+        { tier: "D", name: "Talpa Di Ferro",         emoji: "⛏️", desc: "Barely worth logging. Low rarity, near-zero trade interest.", value: 15, rarity: 10, demand: 9 },
+        { tier: "C", name: "Trippi Troppi",          emoji: "🐟", desc: "Middle of the pack. Might flip for a small gain if you're patient.", value: 34, rarity: 28, demand: 26 },
+        { tier: "B", name: "Ballerina Cappuccina",   emoji: "☕", desc: "Dependable dragon-tier find with steady demand from collectors.", value: 60, rarity: 58, demand: 64 },
+        { tier: "S", name: "Dragon Cannelloni",      emoji: "🐉", desc: "Top of the dragon lineup. Huge rarity and hype whenever one drops.", value: 95, rarity: 92, demand: 97 },
+      ],
+    },
+    small: {
+      label: "Small Tier List",
+      animals: [
+        { tier: "D", name: "Pot Hotspot",            emoji: "🍯", desc: "Extremely common newbie find. Skip unless you're brand new.", value: 10, rarity: 9,  demand: 6 },
+        { tier: "C", name: "Odin Din Din Dun",       emoji: "⚡", desc: "A step up from the basics, but still easy to come by.", value: 28, rarity: 22, demand: 19 },
+        { tier: "B", name: "Boneca Ambalabu",        emoji: "🪆", desc: "A nice early-game grab with decent resale among newer players.", value: 58, rarity: 52, demand: 60 },
+        { tier: "S", name: "Garama and Madundung",   emoji: "🐾", desc: "The best small-tier find out there — snap it up immediately.", value: 90, rarity: 88, demand: 93 },
+      ],
+    },
+  };
+
+  function statRow(label, pct) {
+    return `
+      <div class="sniper-stat-row">
+        <div class="sniper-stat-label"><span>${label}</span><span>${pct}%</span></div>
+        <div class="sniper-stat-bar"><div class="sniper-stat-fill" style="width:${pct}%"></div></div>
+      </div>`;
+  }
+
+  function buildRow(cat, a) {
+    const row = document.createElement("div");
+    row.className = `sniper-row sniper-row-${cat}`;
+    row.dataset.tier = a.tier;
+
+    row.innerHTML = `
+      <div class="sniper-row-img">
+        <span class="sniper-row-emoji">${a.emoji}</span>
+        <img alt="" loading="lazy" />
+      </div>
+      <div class="sniper-row-body">
+        <div class="sniper-row-top">
+          <span class="sniper-row-name">${esc(a.name)}</span>
+          <span class="sniper-row-tier tier-${a.tier}">${a.tier} &middot; ${TIER_LABEL[a.tier]}</span>
+        </div>
+        <p class="sniper-row-desc">${esc(a.desc)}</p>
+        <div class="sniper-row-stats">
+          ${statRow("Value", a.value)}
+          ${statRow("Rarity", a.rarity)}
+          ${statRow("Demand", a.demand)}
+        </div>
+      </div>`;
+
+    // Try to load the real brainrot image (same proxy the log feed uses).
+    // If the wiki doesn't have it, we just keep the emoji glyph shown above.
+    const img = row.querySelector(".sniper-row-img img");
+    img.src = wikiImg(a.name);
+    img.alt = a.name;
+    img.addEventListener("error", () => { row.querySelector(".sniper-row-img").classList.add("broken"); }, { once: true });
+    img.addEventListener("load", () => { row.querySelector(".sniper-row-img").classList.add("loaded"); }, { once: true });
+
+    return row;
+  }
+
+  function render() {
+    mount.innerHTML = "";
+    for (const cat of ["og", "dragon", "small"]) {
+      const data = SNIPER_DATA[cat];
+      const section = document.createElement("section");
+      section.className = `sniper-cat sniper-cat-${cat}`;
+      section.dataset.cat = cat;
+
+      const header = document.createElement("div");
+      header.className = "sniper-cat-header";
+      header.innerHTML = `
+        <span class="sniper-cat-dot"></span>
+        <span class="sniper-cat-title">${data.label}</span>
+        <span class="sniper-cat-count">${data.animals.length}</span>`;
+      section.appendChild(header);
+
+      const list = document.createElement("div");
+      list.className = "sniper-cat-list";
+      data.animals.forEach(a => list.appendChild(buildRow(cat, a)));
+      section.appendChild(list);
+
+      mount.appendChild(section);
+    }
+  }
+
+  render();
+})();
