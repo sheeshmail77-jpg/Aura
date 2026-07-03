@@ -10,7 +10,7 @@
   const bcrypt  = require("bcryptjs");
   const jwt     = require("jsonwebtoken");
   
-  // ─── .env loader ─────────────────────────────────────────────────────────────
+  // ─── .env loaderr ─────────────────────────────────────────────────────────────
   (function loadEnv() {
     try {
       const p = path.join(__dirname, ".env");
