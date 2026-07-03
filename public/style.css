@@ -1233,40 +1233,38 @@ body::before {
 /* ── Embedded Notifier Card ────────────────────────────────────────────── */
 .og-notifier-card {
   position: relative; overflow: hidden;
-  background: rgba(8,8,20,0.85);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 24px; padding: 28px 24px;
-  backdrop-filter: blur(20px) saturate(1.3);
-  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  background: rgba(255,255,255,0.025);
+  border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 22px 20px;
   text-align: center;
   margin-bottom: 0;
 }
 .og-notifier-card::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  background: var(--notif-accent, linear-gradient(90deg, transparent, #ff9900 40%, #ff3300 60%, transparent));
-  transition: background 0.5s;
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--notif-accent, linear-gradient(90deg, var(--og-2), var(--og)));
+  opacity: 0.85; transition: background 0.5s;
 }
-.og-notifier-card.taco  { --notif-accent: linear-gradient(90deg, transparent, #ff9900 40%, #ff3300 60%, transparent); }
-.og-notifier-card.sat   { --notif-accent: linear-gradient(90deg, transparent, #7c3aed 40%, #2563eb 60%, transparent); }
-.og-notifier-card.alert { --notif-accent: linear-gradient(90deg, transparent, #ff2200 40%, #ff6600 60%, transparent); }
+.og-notifier-card.taco  { --notif-accent: linear-gradient(90deg, #cc7700, #ff9900); }
+.og-notifier-card.sat   { --notif-accent: linear-gradient(90deg, #5b21b6, #7c3aed); }
+.og-notifier-card.alert { --notif-accent: linear-gradient(90deg, #cc2200, #ff5500); }
 
 .og-notifier-glow {
-  position: absolute; inset: -4px; border-radius: 28px;
+  position: absolute; inset: -4px; border-radius: var(--radius);
   background: var(--notif-accent, linear-gradient(90deg, #ff9900, #ff3300));
-  opacity: 0; z-index: -1; filter: blur(18px);
+  opacity: 0; z-index: -1; filter: blur(14px);
   transition: opacity 0.5s;
 }
-.og-notifier-card.alert .og-notifier-glow { opacity: 0.16; animation: og-ring-pulse 1.5s ease-in-out infinite; }
-@keyframes og-ring-pulse { 0%,100%{opacity:0.16} 50%{opacity:0.32} }
+.og-notifier-card.alert .og-notifier-glow { opacity: 0.1; animation: og-ring-pulse 1.5s ease-in-out infinite; }
+@keyframes og-ring-pulse { 0%,100%{opacity:0.1} 50%{opacity:0.22} }
 
 .og-notifier-top {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 .og-notifier-badge {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 5px 14px; border-radius: 999px;
-  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 4px 12px; border-radius: 7px;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
   font-size: 11px; font-weight: 800; color: var(--muted);
   letter-spacing: 1.2px; text-transform: uppercase;
 }
@@ -1297,8 +1295,8 @@ body::before {
 .og-event-row { margin-bottom: 6px; }
 .og-event-pill {
   display: inline-flex; align-items: center; gap: 7px;
-  padding: 7px 16px; border-radius: 999px;
-  font-size: 12.5px; font-weight: 800; letter-spacing: 0.3px; border: 1px solid;
+  padding: 6px 14px; border-radius: 8px;
+  font-size: 12px; font-weight: 800; letter-spacing: 0.3px; border: 1px solid;
 }
 .og-event-pill.taco  { background: rgba(255,153,0,0.1);  border-color: rgba(255,153,0,0.35);  color: #ffbb55; }
 .og-event-pill.sat   { background: rgba(124,58,237,0.12); border-color: rgba(124,58,237,0.4);  color: #b78bfa; }
@@ -1348,8 +1346,8 @@ body::before {
 
 /* upcoming */
 .og-upcoming {
-  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
-  border-radius: 12px; padding: 12px 16px;
+  background: rgba(255,255,255,0.025); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 14px;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
 .og-upcoming-label { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
@@ -1442,6 +1440,63 @@ body::before {
   padding-top: 4px; border-top: 1px solid var(--border);
 }
 
+/* ── Per-Animal OG Log Feeds ─────────────────────────────────────────── */
+.og-logs {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.og-log-col {
+  display: flex; flex-direction: column;
+  background: rgba(255,255,255,0.025); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden; min-height: 0;
+  max-height: 480px;
+}
+
+.og-log-col-header {
+  flex-shrink: 0;
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+}
+
+.og-log-col-id {
+  display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0;
+}
+.og-log-col-emoji { font-size: 18px; line-height: 1; }
+.og-log-col-name {
+  font-size: 13px; font-weight: 800; color: var(--animal-color, var(--og));
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.og-log-col-tier {
+  font-size: 9px; font-weight: 900; letter-spacing: 1px;
+  padding: 2px 7px; border-radius: 6px;
+  border: 1px solid; flex-shrink: 0;
+}
+
+.og-log-col-count {
+  font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 7px;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--muted);
+  font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+
+.og-log-col-feed {
+  flex: 1; overflow-y: auto; min-height: 0;
+  padding: 8px; display: flex; flex-direction: column; gap: 6px;
+}
+
+.og-log-col-empty {
+  padding: 30px 16px; text-align: center;
+  color: var(--faint); font-size: 12px; font-weight: 600;
+}
+
+/* entries inside per-animal feeds reuse the main .card structure */
+.og-log-col-feed .card {
+  --card-accent: linear-gradient(90deg, var(--og-2), var(--animal-color, var(--og)));
+}
+
 @media (max-width: 640px) {
   .og-spine { padding-left: 18px; }
   .og-spine::before { left: 5px; }
@@ -1450,6 +1505,8 @@ body::before {
   .og-notifier-card { padding: 20px 16px; }
   .og-countdown { gap: 2px; }
   .og-cd-seg { min-width: 48px; }
+  .og-logs { grid-template-columns: 1fr; }
+  .og-log-col { max-height: 360px; }
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
