@@ -599,6 +599,17 @@ body::before {
 .mut        { background: rgba(130,80,255,0.15);  color: #c4a0ff;      border: 1px solid rgba(130,80,255,0.28); }
 .gen        { background: rgba(46,227,122,0.1);   color: #7ef0b0;      border: 1px solid rgba(46,227,122,0.24); }
 
+/* trait pills on log cards */
+.trait-pills { display: inline-flex; flex-wrap: wrap; gap: 3px; margin-left: 2px; }
+.trait-pill {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: rgba(255,255,255,0.05); color: var(--text);
+  border: 1px solid rgba(255,255,255,0.15); font-size: 9.5px; padding: 1px 5px;
+  border-radius: 5px; white-space: nowrap;
+}
+.trait-icon { width: 14px; height: 14px; border-radius: 3px; object-fit: contain; flex-shrink: 0; }
+.trait-more { background: rgba(255,255,255,0.08); color: var(--muted); border-color: var(--border); }
+
 /* owner row */
 .card-owner {
   display: flex; align-items: center; gap: 7px;
@@ -1051,6 +1062,35 @@ body::before {
 .info-foot-label { color: var(--muted); font-weight: 700; flex: 0 0 100px; }
 .info-foot-val   { color: var(--text); font-weight: 600; flex: 1; word-break: break-all; }
 .info-foot-mono  { font-family: monospace; font-size: 11px; color: var(--muted); }
+
+/* ── Info modal: traits section ────────────────────────────────────────── */
+.info-traits-section {
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.info-traits-header {
+  font-size: 12px; font-weight: 800; color: var(--text);
+  margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+}
+.info-traits-count {
+  background: rgba(255,255,255,0.08); color: var(--muted);
+  font-size: 10px; font-weight: 700; padding: 1px 6px;
+  border-radius: 8px; border: 1px solid var(--border);
+}
+.info-traits-grid {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.info-trait-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px; padding: 5px 10px;
+  transition: background 0.15s;
+}
+.info-trait-chip:hover { background: rgba(255,255,255,0.08); }
+.info-trait-icon  { width: 22px; height: 22px; border-radius: 4px; object-fit: contain; flex-shrink: 0; }
+.info-trait-emoji { font-size: 14px; line-height: 1; }
+.info-trait-name  { font-size: 11.5px; font-weight: 700; color: var(--text); }
+.info-trait-mult  { font-size: 11px; font-weight: 800; margin-left: 2px; }
 
 /* ════════════════════════════════════════════════════════════════════════════
    GET ROLE MODAL (Discord)
