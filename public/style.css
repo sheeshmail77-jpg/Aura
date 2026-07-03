@@ -1198,126 +1198,228 @@ body::before {
   padding: clamp(16px, 4vw, 48px);
 }
 
-.sniper-hero {
-  text-align: center; max-width: 640px; margin: 0 auto 48px;
+/* ════════════════════════════════════════════════════════════════════════════
+   OG SNIPER — EMBEDDED NOTIFIER + OG LOG-CARD SECTIONS
+════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Embedded Notifier Card ────────────────────────────────────────────── */
+.og-notifier-card {
+  position: relative; overflow: hidden;
+  max-width: 620px; margin: 0 auto 36px;
+  background: rgba(8,8,20,0.85);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 24px; padding: 28px 24px;
+  backdrop-filter: blur(20px) saturate(1.3);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  text-align: center;
 }
-.sniper-eyebrow {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 5px 14px; border-radius: 999px;
-  background: rgba(46,227,122,0.1); border: 1px solid rgba(46,227,122,0.25);
-  font-size: 11px; font-weight: 800; color: #7ef0b0;
-  letter-spacing: 1.2px; text-transform: uppercase;
+.og-notifier-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--notif-accent, linear-gradient(90deg, transparent, #ff9900 40%, #ff3300 60%, transparent));
+  transition: background 0.5s;
+}
+.og-notifier-card.taco  { --notif-accent: linear-gradient(90deg, transparent, #ff9900 40%, #ff3300 60%, transparent); }
+.og-notifier-card.sat   { --notif-accent: linear-gradient(90deg, transparent, #7c3aed 40%, #2563eb 60%, transparent); }
+.og-notifier-card.alert { --notif-accent: linear-gradient(90deg, transparent, #ff2200 40%, #ff6600 60%, transparent); }
+
+.og-notifier-glow {
+  position: absolute; inset: -4px; border-radius: 28px;
+  background: var(--notif-accent, linear-gradient(90deg, #ff9900, #ff3300));
+  opacity: 0; z-index: -1; filter: blur(18px);
+  transition: opacity 0.5s;
+}
+.og-notifier-card.alert .og-notifier-glow { opacity: 0.16; animation: og-ring-pulse 1.5s ease-in-out infinite; }
+@keyframes og-ring-pulse { 0%,100%{opacity:0.16} 50%{opacity:0.32} }
+
+.og-notifier-top {
+  display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 18px;
 }
-.sniper-title {
-  font-size: clamp(26px, 5vw, 40px); font-weight: 900; letter-spacing: -1px;
-  line-height: 1.15; margin: 0 0 12px;
+.og-notifier-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 5px 14px; border-radius: 999px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+  font-size: 11px; font-weight: 800; color: var(--muted);
+  letter-spacing: 1.2px; text-transform: uppercase;
 }
-.sniper-title-grad {
-  background: linear-gradient(135deg, var(--og) 20%, var(--dragon));
-  -webkit-background-clip: text; background-clip: text; color: transparent;
+.og-notifier-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+  animation: pulse-dot 1.8s infinite;
 }
-.sniper-sub {
-  font-size: 15px; color: var(--muted); font-weight: 500; line-height: 1.65;
+.og-notifier-live {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 800; color: var(--muted);
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.og-live-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+  animation: pulse-dot 1.8s infinite;
 }
 
-.sniper-hero-actions { margin-top: 20px; display: flex; justify-content: center; }
-.btn-notifier-mini {
+/* alert banner */
+.og-alert-banner {
+  display: none; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 14px; margin-bottom: 16px;
+  background: rgba(255,34,0,0.1); border: 1px solid rgba(255,100,0,0.3);
+  border-radius: 12px; font-size: 12px; font-weight: 700; color: #ff8844;
+}
+.og-alert-banner.visible { display: flex; }
+
+/* event pill + name */
+.og-event-row { margin-bottom: 6px; }
+.og-event-pill {
   display: inline-flex; align-items: center; gap: 7px;
-  padding: 9px 18px; border-radius: 999px; cursor: pointer; font-family: inherit;
-  background: rgba(255,90,0,0.11); border: 1px solid rgba(255,120,0,0.3);
-  color: #ffaa44; font-size: 12.5px; font-weight: 700;
-  transition: background 0.15s, box-shadow 0.15s, transform 0.12s;
+  padding: 7px 16px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 800; letter-spacing: 0.3px; border: 1px solid;
 }
-.btn-notifier-mini:hover { background: rgba(255,100,0,0.2); box-shadow: 0 0 18px rgba(255,100,0,0.18); transform: translateY(-1px); }
+.og-event-pill.taco  { background: rgba(255,153,0,0.1);  border-color: rgba(255,153,0,0.35);  color: #ffbb55; }
+.og-event-pill.sat   { background: rgba(124,58,237,0.12); border-color: rgba(124,58,237,0.4);  color: #b78bfa; }
+.og-event-pill.alert { background: rgba(255,34,0,0.12);  border-color: rgba(255,100,0,0.45); color: #ff8844; }
 
-/* ── Sniper sections: one distinctly-styled, scrollable block per category
-   (OG / Dragon / Small), mirroring the live-feed columns but with its own
-   "sniper row" card look so it's clearly a different kind of log. ────────── */
-.sniper-sections {
-  display: flex; flex-direction: column; gap: 22px;
-  max-width: 900px; margin: 0 auto;
+.og-event-name {
+  font-size: clamp(18px, 3.5vw, 24px); font-weight: 900; letter-spacing: -0.3px;
+  margin: 8px 0 14px;
+}
+.og-event-name.taco  { background: linear-gradient(135deg,#ffcc44,#ff6600); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.og-event-name.sat   { background: linear-gradient(135deg,#c084fc,#60a5fa); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.og-event-name.alert { background: linear-gradient(135deg,#ff8844,#ff3300); -webkit-background-clip:text; background-clip:text; color:transparent; }
+
+/* countdown */
+.og-countdown {
+  display: flex; align-items: flex-end; justify-content: center; gap: 4px;
+  margin-bottom: 16px; flex-wrap: wrap;
+}
+.og-cd-seg { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 58px; }
+.og-cd-num {
+  font-size: clamp(32px, 7vw, 54px); font-weight: 900; letter-spacing: -1.5px; line-height: 1;
+  background: var(--dig-grad, linear-gradient(135deg,#ffcc44,#ff6600));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  font-variant-numeric: tabular-nums;
+}
+.og-notifier-card.taco  .og-cd-num { --dig-grad: linear-gradient(135deg,#ffcc44,#ff6600); }
+.og-notifier-card.sat   .og-cd-num { --dig-grad: linear-gradient(135deg,#c084fc,#60a5fa); }
+.og-notifier-card.alert .og-cd-num { --dig-grad: linear-gradient(135deg,#ff8844,#ff3300); }
+
+.og-cd-label { font-size: 9px; font-weight: 700; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; }
+.og-cd-colon {
+  font-size: clamp(24px, 5vw, 42px); font-weight: 900; color: var(--faint);
+  line-height: 1; padding-bottom: 14px;
+  animation: blink 1.1s step-end infinite;
 }
 
-.sniper-cat {
+/* info row */
+.og-info-row {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.og-chip {
+  padding: 3px 9px; background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+  border-radius: 7px; font-weight: 700; font-size: 11px; color: var(--text);
+}
+
+/* upcoming */
+.og-upcoming {
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.og-upcoming-label { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+.og-upcoming-name { font-size: 13px; font-weight: 700; color: var(--text); margin-top: 2px; }
+.og-upcoming-cd { font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+
+/* ── OG Tier Sections (log-card style) ─────────────────────────────────── */
+.og-sections {
+  display: flex; flex-direction: column; gap: 24px;
+  max-width: 700px; margin: 0 auto;
+}
+
+.og-tier-section {
   border-radius: var(--radius); border: 1px solid var(--border);
   background: rgba(255,255,255,0.02); overflow: hidden;
 }
-.sniper-cat-header {
+.og-tier-header {
   display: flex; align-items: center; gap: 10px;
-  padding: 14px 18px; border-bottom: 1px solid var(--border);
-  background: rgba(255,255,255,0.02);
+  padding: 13px 18px; border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.025);
 }
-.sniper-cat-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-.sniper-cat-title { font-size: 14px; font-weight: 800; letter-spacing: 0.2px; flex: 1; }
-.sniper-cat-count {
-  font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 7px;
-  background: rgba(255,255,255,0.07); border: 1px solid var(--border); color: var(--muted);
-}
-.sniper-cat-og     .sniper-cat-dot   { background: var(--og);     box-shadow: 0 0 8px rgba(255,185,64,0.5); }
-.sniper-cat-og     .sniper-cat-title { color: var(--og); }
-.sniper-cat-dragon .sniper-cat-dot   { background: var(--dragon); box-shadow: 0 0 8px rgba(255,68,102,0.5); }
-.sniper-cat-dragon .sniper-cat-title { color: var(--dragon); }
-.sniper-cat-small  .sniper-cat-dot   { background: var(--small);  box-shadow: 0 0 8px rgba(34,232,255,0.5); }
-.sniper-cat-small  .sniper-cat-title { color: var(--small); }
-
-.sniper-cat-list {
-  max-height: 420px; overflow-y: auto;
-  padding: 12px; display: flex; flex-direction: column; gap: 10px;
+.og-tier-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.og-tier-title { font-size: 13px; font-weight: 900; letter-spacing: 0.6px; flex: 1; text-transform: uppercase; }
+.og-tier-count {
+  font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 7px;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--muted);
 }
 
-/* Row = a "log card", but visually distinct from the live feed cards so it
-   reads as its own thing (horizontal layout, big image, stat bars). */
-.sniper-row {
-  display: flex; gap: 14px; align-items: flex-start;
-  padding: 14px; border-radius: 14px;
-  background: rgba(255,255,255,0.025); border: 1px solid var(--border);
-  transition: border-color 0.18s, box-shadow 0.18s, transform 0.15s;
+.og-tier-feed {
+  padding: 10px; display: flex; flex-direction: column; gap: 8px;
 }
-.sniper-row:hover { transform: translateY(-2px); }
 
-.sniper-row-img {
+/* ── Individual log card (mirrors the Logger .card look) ───────────────── */
+.og-log-card {
+  position: relative; overflow: hidden;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  border-radius: 14px; padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 8px;
+  transition: border-color 0.18s, box-shadow 0.18s, transform 0.15s, background 0.18s;
+  cursor: default; flex-shrink: 0;
+}
+.og-log-accent {
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--og-2), var(--og)); opacity: 0.85;
+}
+.og-log-card:hover {
+  background: rgba(255,255,255,0.05); transform: translateY(-1px);
+  border-color: var(--tier-border); box-shadow: 0 6px 22px rgba(255,140,0,0.1);
+}
+
+/* top row: image + meta */
+.og-log-top {
+  display: flex; align-items: center; gap: 10px;
+}
+.og-log-img {
   position: relative; flex-shrink: 0;
-  width: 60px; height: 60px; border-radius: 14px;
-  background: rgba(255,255,255,0.05); border: 1px solid var(--border);
-  display: grid; place-items: center; overflow: hidden;
-  font-size: 26px;
+  width: 44px; height: 44px; border-radius: 10px;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  overflow: hidden; display: flex; align-items: center; justify-content: center;
 }
-.sniper-row-img img {
-  position: absolute; inset: 0; width: 100%; height: 100%;
-  object-fit: cover; opacity: 0; transition: opacity 0.2s;
+.og-log-img img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  opacity: 0; transition: opacity 0.2s;
 }
-.sniper-row-img.loaded img { opacity: 1; }
-.sniper-row-img.loaded .sniper-row-emoji { display: none; }
-.sniper-row-img.broken img { display: none; }
-
-.sniper-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.sniper-row-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-.sniper-row-name { font-size: 14.5px; font-weight: 800; color: var(--text); letter-spacing: -0.2px; }
-.sniper-row-tier {
-  font-size: 10px; font-weight: 900; letter-spacing: 0.5px;
-  padding: 3px 9px; border-radius: 7px; white-space: nowrap;
+.og-log-img.loaded img { opacity: 1; }
+.og-log-img.loaded::after { display: none; }
+.og-log-img.broken img { display: none; }
+.og-log-img::after {
+  content: attr(data-fallback);
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
 }
-.sniper-row-tier.tier-D { background: rgba(96,112,128,0.2);  border: 1px solid rgba(96,112,128,0.3);  color: #90a0b0; }
-.sniper-row-tier.tier-C { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.3);  color: #93c5fd; }
-.sniper-row-tier.tier-B { background: rgba(255,185,64,0.12); border: 1px solid rgba(255,185,64,0.3);  color: var(--og); }
-.sniper-row-tier.tier-S { background: rgba(255,140,0,0.15);  border: 1px solid rgba(255,140,0,0.4);   color: #ffd060; }
+.og-log-img.loaded::after { content: none; }
 
-.sniper-row-desc { font-size: 12px; color: var(--muted); font-weight: 500; line-height: 1.55; margin: 0; }
+.og-log-meta {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+}
+.og-log-tier {
+  font-size: 9.5px; font-weight: 900; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--tier-color, var(--og));
+}
+.og-log-name {
+  font-size: 13.5px; font-weight: 800; color: var(--text); letter-spacing: -0.2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
-.sniper-row-stats { display: flex; flex-direction: column; gap: 5px; }
-.sniper-stat-row { display: flex; flex-direction: column; gap: 3px; }
-.sniper-stat-label { font-size: 10px; font-weight: 700; color: var(--faint); letter-spacing: 0.4px; display: flex; justify-content: space-between; }
-.sniper-stat-bar { height: 4px; background: rgba(255,255,255,0.07); border-radius: 99px; overflow: hidden; }
-.sniper-stat-fill { height: 100%; border-radius: 99px; transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1); }
+.og-log-desc {
+  font-size: 11.5px; color: var(--muted); font-weight: 500; line-height: 1.55; margin: 0;
+  padding-top: 4px; border-top: 1px solid var(--border);
+}
 
-.sniper-row-og     .sniper-stat-fill { background: linear-gradient(90deg, var(--og-2), var(--og)); }
-.sniper-row-dragon .sniper-stat-fill { background: linear-gradient(90deg, var(--dragon-2), var(--dragon)); }
-.sniper-row-small  .sniper-stat-fill { background: linear-gradient(90deg, var(--small-2), var(--small)); }
-
-.sniper-row-og:hover     { border-color: rgba(255,185,64,0.4); box-shadow: 0 8px 24px var(--og-glow); }
-.sniper-row-dragon:hover { border-color: rgba(255,68,102,0.4); box-shadow: 0 8px 24px var(--dragon-glow); }
-.sniper-row-small:hover  { border-color: rgba(34,232,255,0.38); box-shadow: 0 8px 24px var(--small-glow); }
+@media (max-width: 640px) {
+  .og-notifier-card { padding: 20px 16px; }
+  .og-countdown { gap: 2px; }
+  .og-cd-seg { min-width: 48px; }
+}
 
 @media (max-width: 640px) {
   .sniper-row { flex-direction: column; align-items: stretch; }
