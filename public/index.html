@@ -492,23 +492,60 @@
              OG SNIPER PAGE
         ════════════════════════════════════════════════════════════════════ -->
                 <div id="viewOgSniper" hidden>
-          <div class="sniper-hero">
-            <div class="sniper-eyebrow">&#x1F3AF; Tool</div>
-            <h2 class="sniper-title">OG <span class="sniper-title-grad">SNIPER</span></h2>
-            <p class="sniper-sub">Ranked worst to best &#x2014; know what you&#39;re sniping before you snipe it.</p>
-            <div class="sniper-hero-actions">
-              <button type="button" class="btn-notifier-mini" onclick="window.open('/notifier.html','_blank','noopener')">
-                <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13">
-                  <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zm0 16a2 2 0 01-2-2h4a2 2 0 01-2 2z"/>
-                </svg>
+
+          <!-- ═══ EMBEDDED ADMIN ABUSE NOTIFIER ═══ -->
+          <section class="og-notifier-card" id="ogNotifierCard">
+            <div class="og-notifier-glow"></div>
+            <div class="og-notifier-top">
+              <div class="og-notifier-badge">
+                <span class="og-notifier-dot"></span>
                 Admin Abuse Notifier
-              </button>
+              </div>
+              <span class="og-notifier-live"><span class="og-live-dot"></span> LIVE</span>
             </div>
+
+            <!-- Alert banner (< 15 min) -->
+            <div class="og-alert-banner" id="ogAlertBanner">
+              ⚠️ <span id="ogAlertText">Admin abuse is about to happen!</span>
+            </div>
+
+            <!-- Event pill + name -->
+            <div class="og-event-row">
+              <div class="og-event-pill taco" id="ogEventPill">🌮 Taco Tuesday</div>
+            </div>
+            <div class="og-event-name taco" id="ogEventName">TACO TUESDAY</div>
+
+            <!-- Countdown -->
+            <div class="og-countdown">
+              <div class="og-cd-seg"><span class="og-cd-num" id="ogCdDays">00</span><span class="og-cd-label">Days</span></div>
+              <span class="og-cd-colon">:</span>
+              <div class="og-cd-seg"><span class="og-cd-num" id="ogCdHours">00</span><span class="og-cd-label">Hours</span></div>
+              <span class="og-cd-colon">:</span>
+              <div class="og-cd-seg"><span class="og-cd-num" id="ogCdMins">00</span><span class="og-cd-label">Mins</span></div>
+              <span class="og-cd-colon">:</span>
+              <div class="og-cd-seg"><span class="og-cd-num" id="ogCdSecs">00</span><span class="og-cd-label">Secs</span></div>
+            </div>
+
+            <!-- Info row -->
+            <div class="og-info-row" id="ogInfoRow">
+              Every <span class="og-chip" id="ogEventDay">Tuesday</span> at <span class="og-chip" id="ogEventTime">6:00 PM ET</span>
+            </div>
+
+            <!-- Next-up preview -->
+            <div class="og-upcoming" id="ogUpcoming">
+              <div>
+                <div class="og-upcoming-label">After this, next up</div>
+                <div class="og-upcoming-name" id="ogUpcomingName">Saturday Update 🎮</div>
+              </div>
+              <div class="og-upcoming-cd" id="ogUpcomingCd">—</div>
+            </div>
+          </section>
+
+          <!-- ═══ OG TIER SECTIONS (log-card style) ═══ -->
+          <div class="og-sections" id="ogSections">
+            <!-- filled by app.js -->
           </div>
 
-          <div class="sniper-sections" id="sniperSections">
-            <!-- filled in by app.js (renderSniperTiers) -->
-          </div>
         </div><!-- /viewOgSniper -->
 
       </div><!-- /page -->
