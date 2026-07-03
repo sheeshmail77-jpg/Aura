@@ -10,7 +10,7 @@
   const bcrypt  = require("bcryptjs");
   const jwt     = require("jsonwebtoken");
   
-  // ─── .env loaderrr ─────────────────────────────────────────────────────────────
+  // ─── .env loader ─────────────────────────────────────────────────────────────
   (function loadEnv() {
     try {
       const p = path.join(__dirname, ".env");
@@ -1276,23 +1276,45 @@
     } catch (_) {}
   }
 
+  // Roblox's thumbnails API rate-limits very aggressively (observed: 429 after
+  // just 2 back-to-back requests from the same IP). Two things are required
+  // to avoid getting stuck with icon: null forever:
+  //   1. Only ever request icons for traits that don't already have one —
+  //      never re-request already-resolved icons.
+  //   2. Never fire overlapping/concurrent resolve passes, and space out
+  //      chunk requests instead of firing them all at once.
+  let resolveInFlight = false;
+
   function resolveRobloxIcons(traitMap) {
-    // Collect all unique asset IDs
+    if (resolveInFlight) return; // a pass is already running — avoid piling on
+    // Collect asset IDs that still need an icon.
     const assetIds = [];
     for (const [name, info] of Object.entries(traitMap)) {
-      if (info.assetId) assetIds.push(info.assetId);
+      if (info.assetId && !info.icon) assetIds.push(info.assetId);
     }
     if (!assetIds.length) return;
 
-    // Batch resolve in chunks of 50 via Roblox thumbnails API
+    resolveInFlight = true;
     const batchSize = 50;
+    const chunks = [];
     for (let i = 0; i < assetIds.length; i += batchSize) {
-      const batch = assetIds.slice(i, i + batchSize);
+      chunks.push(assetIds.slice(i, i + batchSize));
+    }
+
+    let idx = 0;
+    function runNextChunk() {
+      if (idx >= chunks.length) { resolveInFlight = false; return; }
+      const batch = chunks[idx++];
       const url = `https://thumbnails.roblox.com/v1/assets?assetIds=${batch.join(",")}&size=150x150&format=Png&isCircular=false`;
       const req = https.get(url, (resp) => {
         let body = "";
         resp.on("data", (d) => body += d);
         resp.on("end", () => {
+          if (resp.statusCode === 429) {
+            console.warn("[trait-data] Roblox thumbnails API rate-limited us (429) — will retry remaining icons on a later request");
+            resolveInFlight = false; // stop; leftover icons stay null and will be retried next time new/unresolved icons are requested
+            return;
+          }
           try {
             const json = JSON.parse(body);
             if (json.data) {
@@ -1300,7 +1322,6 @@
               for (const item of json.data) {
                 if (item.imageUrl) idToUrl[String(item.targetId)] = item.imageUrl;
               }
-              // Map resolved URLs back to trait entries
               for (const [name, info] of Object.entries(traitMap)) {
                 if (info.assetId && idToUrl[info.assetId]) {
                   info.icon = idToUrl[info.assetId];
@@ -1309,11 +1330,21 @@
               saveTraitDataCache();
             }
           } catch (_) {}
+          // Stagger the next chunk so we don't immediately trip the rate limit again.
+          setTimeout(runNextChunk, 1500);
         });
       });
-      req.on("error", () => {});
+      req.on("error", () => {
+        setTimeout(runNextChunk, 1500);
+      });
     }
+    runNextChunk();
   }
+
+  // Periodic sweep: keep trying to resolve any icons that are still missing
+  // (e.g. because we got rate-limited earlier), independent of when the game
+  // client happens to POST again.
+  setInterval(() => resolveRobloxIcons(traitDataCache), 60 * 1000);
 
   app.post("/api/trait-data", (req, res) => {
     if (INGEST_TOKEN) {
