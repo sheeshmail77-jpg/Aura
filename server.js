@@ -1265,6 +1265,11 @@
     return String(v).slice(0, n);
   }
   
+  function normalizeTraits(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw.slice(0, 20).map(t => String(t).slice(0, 60)).filter(Boolean);
+  }
+
   function normalizeAnimals(arr) {
     if (!Array.isArray(arr)) return [];
     return arr.slice(0, 40).map(a => ({
@@ -1273,6 +1278,7 @@
       generation: a && a.generation ? clampStr(a.generation, 32) : null,
       tier:       Number(a && a.tier) || 1,
       image:      a && a.image ? clampStr(a.image, 500) : null,
+      traits:     normalizeTraits(a && a.traits),
     }));
   }
   
