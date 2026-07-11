@@ -272,6 +272,7 @@
       if (password !== OWNER_PASSWORD) {
         return res.status(401).json({ error: "invalid credentials" });
       }
+      setSessionCookie(res);
       return res.json({
         token: signToken({ id: "owner", username: OWNER_USERNAME, role: "owner" }),
         user:  { id: "owner", username: OWNER_USERNAME, role: "owner" },
@@ -323,6 +324,7 @@
     // Persist any lock updates
     saveUsers(users);
   
+    setSessionCookie(res);
     return res.json({
       token: signToken({ id: user.id, username: user.username, role: user.role || "viewer" }),
       user:  { id: user.id, username: user.username, role: user.role || "viewer" },
@@ -331,6 +333,11 @@
   
   app.get("/api/auth/me", requireAuth, (req, res) => {
     res.json({ user: { id: req.user.id, username: req.user.username, role: req.user.role } });
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    clearSessionCookie(res);
+    res.json({ ok: true });
   });
 
   // POST /api/auth/redeem  { key }
@@ -393,6 +400,7 @@
     users.push(newUser);
     saveUsers(users);
 
+    setSessionCookie(res);
     return res.json({
       token: signToken({ id: newUser.id, username: newUser.username, role: "viewer" }),
       user:  { id: newUser.id, username: newUser.username, role: "viewer" },
@@ -941,8 +949,116 @@
     res.json({ ok: true, username: newUser.username, password: rawPassword, plan });
   });
 
+  // ─── security headers (every response) ──────────────────────────────────────
+  app.use((req, res, next) => {
+    res.setHeader("X-Robots-Tag",            "noindex, nofollow");
+    res.setHeader("X-Content-Type-Options",  "nosniff");
+    res.setHeader("X-Frame-Options",         "DENY");
+    res.setHeader("Referrer-Policy",         "no-referrer");
+    res.setHeader("Permissions-Policy",      "camera=(), microphone=(), geolocation=()");
+    res.setHeader("Content-Security-Policy",
+      "default-src 'self'; " +
+      "script-src 'self'; " +
+      "style-src 'self' https://fonts.googleapis.com; " +
+      "font-src https://fonts.gstatic.com; " +
+      "img-src 'self' data: blob: https:; " +
+      "connect-src 'self' wss: ws:; " +
+      "frame-ancestors 'none';"
+    );
+    next();
+  });
+
+  // ─── session cookie helpers ───────────────────────────────────────────────────
+  // A lightweight signed cookie is set on login so the browser can fetch gated
+  // assets (app.js / style.css) without exposing the JWT in a URL. HttpOnly +
+  // SameSite=Strict means JS can't read or forge it.
+  const STATIC_COOKIE = "bl_sess";
+
+  function setSessionCookie(res) {
+    const signed = jwt.sign({ ok: 1 }, JWT_SECRET, { expiresIn: "24h" });
+    res.setHeader("Set-Cookie",
+      `${STATIC_COOKIE}=${signed}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400`
+    );
+  }
+
+  function clearSessionCookie(res) {
+    res.setHeader("Set-Cookie",
+      `${STATIC_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`
+    );
+  }
+
+  function hasValidSessionCookie(req) {
+    const raw   = req.headers.cookie || "";
+    const match = raw.match(new RegExp(`(?:^|;\\s*)${STATIC_COOKIE}=([^;]+)`));
+    if (!match) return false;
+    try { jwt.verify(match[1], JWT_SECRET); return true; }
+    catch (_) { return false; }
+  }
+
+  // ─── obfuscated JS + CSS cache (built once at startup) ───────────────────────
+  const PUBLIC_DIR = path.join(__dirname, "public");
+  let _obfAppJs    = null;
+  let _rawStyleCss = null;
+
+  function buildObfuscatedJs() {
+    if (_obfAppJs) return;
+    try {
+      let src = fs.readFileSync(path.join(PUBLIC_DIR, "app.js"), "utf8");
+
+      // 1. Strip single-line comments
+      src = src.replace(/(?<!['"\/])\/\/.*$/gm, "");
+      // 2. Collapse excess blank lines
+      src = src.replace(/\n{3,}/g, "\n");
+      // 3. Split readable string literals (skip API routes / URLs so fetch() still works)
+      src = src.replace(/"([^"\\]{6,})"/g, (full, s) => {
+        if (/^\/api|^https?:|^wss?:|^Bearer/.test(s)) return full;
+        const parts = s.match(/.{1,4}/g) || [s];
+        return parts.map(p => JSON.stringify(p)).join("+");
+      });
+      // 4. Wrap: disable console so DevTools gives nothing useful
+      src = "(function(){" +
+            "var _c=window.console;" +
+            "try{Object.keys(_c).forEach(function(k){_c[k]=function(){};});}catch(e){}" +
+            src +
+            "})();";
+
+      _obfAppJs = src;
+      console.log("[static] app.js obfuscated (" + src.length + " bytes)");
+    } catch (e) {
+      console.error("[static] Failed to obfuscate app.js:", e.message);
+      try { _obfAppJs = fs.readFileSync(path.join(PUBLIC_DIR, "app.js"), "utf8"); } catch (_) { _obfAppJs = ""; }
+    }
+  }
+
+  function loadStyleCss() {
+    if (_rawStyleCss) return;
+    try { _rawStyleCss = fs.readFileSync(path.join(PUBLIC_DIR, "style.css"), "utf8"); }
+    catch (e) { console.error("[static] Failed to read style.css:", e.message); _rawStyleCss = ""; }
+  }
+
+  buildObfuscatedJs();
+  loadStyleCss();
+
+  // ─── gated asset routes ───────────────────────────────────────────────────────
+  // These must come BEFORE express.static so they take priority.
+  app.get("/app.js", (req, res) => {
+    if (!hasValidSessionCookie(req)) return res.status(403).send("// forbidden");
+    res.setHeader("Content-Type",  "application/javascript");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Pragma",        "no-cache");
+    res.send(_obfAppJs);
+  });
+
+  app.get("/style.css", (req, res) => {
+    if (!hasValidSessionCookie(req)) return res.status(403).send("/* forbidden */");
+    res.setHeader("Content-Type",  "text/css");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Pragma",        "no-cache");
+    res.send(_rawStyleCss);
+  });
+
   // ─── static files ────────────────────────────────────────────────────────────
-  app.use(express.static(path.join(__dirname, "public")));
+  app.use(express.static(PUBLIC_DIR, { dotfiles: "deny" }));
   
   // ─── logs (auth-protected) ────────────────────────────────────────────────────
   /** @type {Array<object>} newest first */
