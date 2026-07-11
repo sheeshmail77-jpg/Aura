@@ -34,6 +34,8 @@
     authToken = null;
     currentUser = null;
     localStorage.removeItem("bl_token");
+    // Clear the HttpOnly session cookie server-side (fire-and-forget)
+    fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
   }
   
   async function apiFetch(url, opts = {}) {
