@@ -1003,38 +1003,11 @@
   function buildObfuscatedJs() {
     if (_obfAppJs) return;
     try {
-      let src = fs.readFileSync(path.join(PUBLIC_DIR, "app.js"), "utf8");
-
-      // 1. Strip single-line comments
-      src = src.replace(/(?<!['"\/])\/\/.*$/gm, "");
-      // 2. Collapse excess blank lines
-      src = src.replace(/\n{3,}/g, "\n");
-      // 3. Only obfuscate long plain-English descriptions/labels (safe subset).
-      //    Skip anything that looks structural: IDs, class names, event names,
-      //    API paths, URLs, CSS properties, attribute names, single words, etc.
-      src = src.replace(/"([^"\\]{20,})"/g, (full, s) => {
-        // Skip anything with special chars that suggest it's structural
-        if (/[\/\-_#\.\[\]{}():|@]/.test(s)) return full;
-        // Skip API paths, URLs, auth headers
-        if (/^\/api|^https?:|^wss?:|^Bearer|^application\/|^text\//.test(s)) return full;
-        // Skip strings that look like identifiers or single words (no spaces at all)
-        if (!/\s/.test(s)) return full;
-        // Only split long human-readable multi-word strings (descriptions etc.)
-        const parts = s.match(/.{1,6}/g) || [s];
-        return parts.map(p => JSON.stringify(p)).join("+");
-      });
-      // 4. Wrap: disable console so DevTools gives nothing useful
-      src = "(function(){" +
-            "var _c=window.console;" +
-            "try{Object.keys(_c).forEach(function(k){_c[k]=function(){};});}catch(e){}" +
-            src +
-            "})();";
-
-      _obfAppJs = src;
-      console.log("[static] app.js obfuscated (" + src.length + " bytes)");
+      _obfAppJs = fs.readFileSync(path.join(PUBLIC_DIR, "app.js"), "utf8");
+      console.log("[static] app.js loaded (" + _obfAppJs.length + " bytes)");
     } catch (e) {
-      console.error("[static] Failed to obfuscate app.js:", e.message);
-      try { _obfAppJs = fs.readFileSync(path.join(PUBLIC_DIR, "app.js"), "utf8"); } catch (_) { _obfAppJs = ""; }
+      console.error("[static] Failed to read app.js:", e.message);
+      _obfAppJs = "";
     }
   }
 
