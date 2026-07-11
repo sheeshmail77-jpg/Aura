@@ -34,8 +34,6 @@
     authToken = null;
     currentUser = null;
     localStorage.removeItem("bl_token");
-    // Clear the HttpOnly session cookie server-side (fire-and-forget)
-    fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
   }
   
   async function apiFetch(url, opts = {}) {
@@ -1450,6 +1448,58 @@
       last.remove();
     }
     setCounts();
+
+    // ── Also push OG entries into the OG Sniper tab per-animal feed ──────────
+    if (entry.category === "og") {
+      const animals = Array.isArray(entry.animals) && entry.animals.length
+        ? entry.animals : [];
+      animals.forEach(a => {
+        const feedId = "ogFeed_" + String(a.name).replace(/\s+/g, "_");
+        const ogFeedEl = document.getElementById(feedId);
+        if (!ogFeedEl) return;
+
+        // Remove "No logs yet" placeholder if present
+        const empty = ogFeedEl.querySelector(".og-log-col-empty");
+        if (empty) empty.remove();
+
+        // Build a compact sniper card
+        const card = document.createElement("div");
+        card.className = "og-sniper-card" + (isNew ? " flash" : "");
+
+        const mutRaw  = String(a.mutation || "Normal").replace(/[^\w\s]/g, "").trim();
+        const mutClean = mutRaw || "Normal";
+        const isNorm  = !mutClean || ["normal","none","base",""].includes(mutClean.toLowerCase());
+        const mutBadge = `<span class="badge ${isNorm ? "mut-normal" : "mut"}">${isNorm ? "Normal" : mutClean}</span>`;
+
+        const joinBtn = entry.joinLink
+          ? `<a class="join-btn" href="${entry.joinLink}" target="_blank" rel="noopener">Join</a>`
+          : "";
+
+        const ts = entry.loggedAt || entry.receivedAt || Date.now();
+        const ago = timeAgo(ts);
+
+        card.innerHTML = `
+          <div class="og-sc-top">
+            <span class="og-sc-owner">${esc(entry.owner || "?")}</span>
+            ${mutBadge}
+            <span class="og-sc-ago" data-ts="${ts}">${ago}</span>
+          </div>
+          <div class="og-sc-bot">
+            ${a.generation ? `<span class="badge gen">${esc(a.generation)}</span>` : ""}
+            ${joinBtn}
+          </div>`;
+
+        ogFeedEl.insertBefore(card, ogFeedEl.firstChild);
+
+        // Update the per-column count badge
+        const countEl = document.querySelector(`.og-log-col-count[data-count="${a.name}"]`);
+        if (countEl) countEl.textContent = ogFeedEl.querySelectorAll(".og-sniper-card").length;
+
+        // Cap at 50 cards per column
+        const allCards = ogFeedEl.querySelectorAll(".og-sniper-card");
+        if (allCards.length > 50) allCards[allCards.length - 1].remove();
+      });
+    }
   }
   
   function tickTimers() {
