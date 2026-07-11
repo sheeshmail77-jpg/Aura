@@ -1524,6 +1524,62 @@ body::before {
   --card-accent: linear-gradient(90deg, var(--og-2), var(--animal-color, var(--og)));
 }
 
+/* ── OG Sniper live log cards ───────────────────────────────────────── */
+.og-sniper-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--animal-color, var(--og));
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  transition: background 0.15s;
+}
+.og-sniper-card:hover { background: var(--surface-3); }
+.og-sniper-card.flash { animation: flashIn 0.6s ease; }
+.og-sc-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.og-sc-owner {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.og-sc-ago {
+  font-size: 10px;
+  color: var(--faint);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.og-sc-bot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.og-sc-bot .join-btn {
+  margin-left: auto;
+  padding: 2px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.og-sc-bot .join-btn:hover { opacity: 0.85; }
+
 /* ── OG Sniper responsive ───────────────────────────────────────────── */
 @media (max-width: 900px) {
   .og-sidebar { width: 180px; }
