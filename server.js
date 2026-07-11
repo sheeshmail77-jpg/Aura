@@ -958,11 +958,11 @@
     res.setHeader("Permissions-Policy",      "camera=(), microphone=(), geolocation=()");
     res.setHeader("Content-Security-Policy",
       "default-src 'self'; " +
-      "script-src 'self'; " +
-      "style-src 'self' https://fonts.googleapis.com; " +
-      "font-src https://fonts.gstatic.com; " +
+      "script-src 'self' 'unsafe-inline'; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+      "font-src 'self' https://fonts.gstatic.com data:; " +
       "img-src 'self' data: blob: https:; " +
-      "connect-src 'self' wss: ws:; " +
+      "connect-src 'self' wss: ws: https:; " +
       "frame-ancestors 'none';"
     );
     next();
@@ -1009,10 +1009,18 @@
       src = src.replace(/(?<!['"\/])\/\/.*$/gm, "");
       // 2. Collapse excess blank lines
       src = src.replace(/\n{3,}/g, "\n");
-      // 3. Split readable string literals (skip API routes / URLs so fetch() still works)
-      src = src.replace(/"([^"\\]{6,})"/g, (full, s) => {
-        if (/^\/api|^https?:|^wss?:|^Bearer/.test(s)) return full;
-        const parts = s.match(/.{1,4}/g) || [s];
+      // 3. Only obfuscate long plain-English descriptions/labels (safe subset).
+      //    Skip anything that looks structural: IDs, class names, event names,
+      //    API paths, URLs, CSS properties, attribute names, single words, etc.
+      src = src.replace(/"([^"\\]{20,})"/g, (full, s) => {
+        // Skip anything with special chars that suggest it's structural
+        if (/[\/\-_#\.\[\]{}():|@]/.test(s)) return full;
+        // Skip API paths, URLs, auth headers
+        if (/^\/api|^https?:|^wss?:|^Bearer|^application\/|^text\//.test(s)) return full;
+        // Skip strings that look like identifiers or single words (no spaces at all)
+        if (!/\s/.test(s)) return full;
+        // Only split long human-readable multi-word strings (descriptions etc.)
+        const parts = s.match(/.{1,6}/g) || [s];
         return parts.map(p => JSON.stringify(p)).join("+");
       });
       // 4. Wrap: disable console so DevTools gives nothing useful
@@ -1041,20 +1049,22 @@
 
   // ─── gated asset routes ───────────────────────────────────────────────────────
   // These must come BEFORE express.static so they take priority.
+  // style.css is served freely — it contains no sensitive logic and is needed
+  // to render the login page before any cookie exists.
+  app.get("/style.css", (req, res) => {
+    res.setHeader("Content-Type",  "text/css");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.send(_rawStyleCss);
+  });
+
+  // app.js is served to everyone BUT is obfuscated at startup so the source is
+  // unreadable. The login overlay is part of the same bundle, so we can't gate
+  // it behind the cookie — that would break the login page itself.
   app.get("/app.js", (req, res) => {
-    if (!hasValidSessionCookie(req)) return res.status(403).send("// forbidden");
     res.setHeader("Content-Type",  "application/javascript");
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     res.setHeader("Pragma",        "no-cache");
     res.send(_obfAppJs);
-  });
-
-  app.get("/style.css", (req, res) => {
-    if (!hasValidSessionCookie(req)) return res.status(403).send("/* forbidden */");
-    res.setHeader("Content-Type",  "text/css");
-    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-    res.setHeader("Pragma",        "no-cache");
-    res.send(_rawStyleCss);
   });
 
   // ─── static files ────────────────────────────────────────────────────────────
