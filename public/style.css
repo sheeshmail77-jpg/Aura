@@ -153,7 +153,7 @@ body::before {
   box-shadow: 0 48px 120px rgba(0,0,0,0.78), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.08);
   backdrop-filter: var(--glass);
   position: relative; overflow: hidden; z-index: 2;
-  animation: loginCardIn 0.7s cubic-bezier(0.22,1,0.36,1) both;
+  animation: loginCardIn 0.7s cubic-bezier(0.22,1,0.36,1) both, loginGlow 9s ease-in-out infinite;
 }
 .login-card::before {
   content: "";
@@ -198,7 +198,7 @@ body::before {
   font-family: inherit; cursor: pointer; letter-spacing: 0.2px;
   transition: background 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
-.login-tab:hover { color: var(--text); }
+.login-tab:hover { color: var(--text); background: rgba(255,255,255,0.05); }
 .login-tab.login-tab-active {
   background: linear-gradient(135deg, rgba(255,149,0,0.18), rgba(255,48,96,0.16));
   color: #fff;
@@ -342,6 +342,40 @@ body::before {
 }
 @keyframes loginTopShimmer {
   to { background-position: -200% 0; }
+}
+
+/* ── Login refinements (v4) ─────────────────────────────────────────────── */
+.login-brand .brand-logo,
+.login-brand .brand-mark {
+  animation: loginLogoFloat 4.5s ease-in-out infinite, loginMarkPulse 3.5s ease-in-out infinite;
+}
+
+.login-form input { caret-color: #ff9500; }
+.field:focus-within label { color: #ffb96a; transition: color 0.18s; }
+
+.pw-wrap .pw-toggle { border-radius: 8px; transition: opacity 0.15s, color 0.15s, background 0.15s; }
+.pw-wrap .pw-toggle:hover { opacity: 1; color: #ff9500; background: rgba(255,149,0,0.12); }
+
+@keyframes loginGlow {
+  0%, 100% { box-shadow: 0 44px 110px rgba(0,0,0,0.72), 0 0 60px rgba(255,120,0,0.16), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.08); }
+  33%      { box-shadow: 0 44px 110px rgba(0,0,0,0.72), 0 0 66px rgba(255,60,120,0.20), 0 0 0 1px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.08); }
+  66%      { box-shadow: 0 44px 110px rgba(0,0,0,0.72), 0 0 66px rgba(140,90,255,0.20), 0 0 0 1px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.08); }
+}
+@keyframes loginLogoFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+@keyframes loginMarkPulse {
+  0%, 100% { box-shadow: 0 10px 30px rgba(255,90,0,0.35), 0 0 0 1px rgba(255,255,255,0.06); }
+  50%      { box-shadow: 0 14px 40px rgba(255,90,0,0.5), 0 0 0 1px rgba(255,255,255,0.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-card, .login-overlay::before, .login-card::before,
+  .login-brand .brand-logo, .login-brand .brand-mark,
+  .login-form .field, .login-form .login-submit, .login-form .login-error {
+    animation: none !important;
+  }
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -1524,62 +1558,6 @@ body::before {
   --card-accent: linear-gradient(90deg, var(--og-2), var(--animal-color, var(--og)));
 }
 
-/* ── OG Sniper live log cards ───────────────────────────────────────── */
-.og-sniper-card {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--animal-color, var(--og));
-  border-radius: 6px;
-  padding: 8px 10px;
-  margin-bottom: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  transition: background 0.15s;
-}
-.og-sniper-card:hover { background: var(--surface-3); }
-.og-sniper-card.flash { animation: flashIn 0.6s ease; }
-.og-sc-top {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.og-sc-owner {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text);
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.og-sc-ago {
-  font-size: 10px;
-  color: var(--faint);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.og-sc-bot {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.og-sc-bot .join-btn {
-  margin-left: auto;
-  padding: 2px 10px;
-  font-size: 10px;
-  font-weight: 700;
-  border-radius: 4px;
-  background: var(--accent);
-  color: #fff;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: opacity 0.15s;
-}
-.og-sc-bot .join-btn:hover { opacity: 0.85; }
-
 /* ── OG Sniper responsive ───────────────────────────────────────────── */
 @media (max-width: 900px) {
   .og-sidebar { width: 180px; }
@@ -1816,3 +1794,69 @@ body::before {
 
 /* sound button label */
 #soundToggleBtn { min-width: 80px; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MAIN DASHBOARD POLISH (v4) — premium treatment matching the login screen
+════════════════════════════════════════════════════════════════════════════ */
+
+/* Brand title gradient + glowing logo (topbar) */
+.brand-text h1 {
+  background: linear-gradient(90deg, #ffffff 25%, #ffd9a8 60%, #ffb0c0 95%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.brand .brand-logo, .brand .brand-mark {
+  box-shadow: 0 6px 20px rgba(255,90,0,0.28), 0 0 0 1px rgba(255,255,255,0.05);
+}
+
+/* Animated accent line under the topbar */
+.topbar::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,150,0,0.5), rgba(255,60,120,0.4), rgba(157,100,255,0.5), transparent);
+  background-size: 200% 100%;
+  animation: loginTopShimmer 8s linear infinite;
+  pointer-events: none;
+}
+
+/* Stat cards: colored top accent, staggered entrance, stronger hover */
+.stat-card::after {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--stat-grad); opacity: 0.7;
+}
+.stat-card { animation: dashCardIn 0.5s ease both; }
+.stats .stat-card:nth-child(1) { animation-delay: 0.05s; }
+.stats .stat-card:nth-child(2) { animation-delay: 0.12s; }
+.stats .stat-card:nth-child(3) { animation-delay: 0.19s; }
+.stats .stat-card:nth-child(4) { animation-delay: 0.26s; }
+.stat-card:hover { transform: translateY(-3px); }
+
+/* Feed columns: entrance + per-color top accent + tinted header + colored count */
+.feed-col { position: relative; animation: dashCardIn 0.55s ease both; }
+.feeds .feed-col:nth-child(1) { animation-delay: 0.10s; }
+.feeds .feed-col:nth-child(2) { animation-delay: 0.18s; }
+.feeds .feed-col:nth-child(3) { animation-delay: 0.26s; }
+.feed-col::after {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; z-index: 2;
+  opacity: 0.9; pointer-events: none;
+}
+.feed-col[data-feed="og"]::after     { background: linear-gradient(90deg, var(--og-2), var(--og)); }
+.feed-col[data-feed="dragon"]::after { background: linear-gradient(90deg, var(--dragon-2), var(--dragon)); }
+.feed-col[data-feed="small"]::after  { background: linear-gradient(90deg, var(--small-2), var(--small)); }
+.feed-col:hover { border-color: var(--border-strong); }
+
+.feed-col[data-feed="og"]     .feed-header { background: linear-gradient(180deg, rgba(255,149,0,0.08), transparent); }
+.feed-col[data-feed="dragon"] .feed-header { background: linear-gradient(180deg, rgba(255,68,102,0.08), transparent); }
+.feed-col[data-feed="small"]  .feed-header { background: linear-gradient(180deg, rgba(34,232,255,0.07), transparent); }
+
+.feed-col[data-feed="og"]     .feed-count { color: var(--og);     border-color: rgba(255,185,64,0.3); background: rgba(255,149,0,0.1); }
+.feed-col[data-feed="dragon"] .feed-count { color: var(--dragon); border-color: rgba(255,68,102,0.3); background: rgba(255,68,102,0.1); }
+.feed-col[data-feed="small"]  .feed-count { color: var(--small);  border-color: rgba(34,232,255,0.3); background: rgba(34,232,255,0.09); }
+
+@keyframes dashCardIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar::after, .stat-card, .feed-col { animation: none !important; }
+}
