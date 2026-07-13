@@ -2292,3 +2292,96 @@ body {
   .dash-title { font-size: 23px; }
   .dash-sub { font-size: 12px; }
 }
+
+/* ████████████████████████████████████████████████████████████████████████████
+   NAV AS DEDICATED BOX TABS  (compact tiles + per-tab logo & color)
+████████████████████████████████████████████████████████████████████████████ */
+.app-sidebar .page-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-content: start;
+}
+.app-sidebar .page-nav-btn {
+  position: relative;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 86px;
+  padding: 14px 8px 12px;
+  border-radius: 15px;
+  text-align: center;
+  background: rgba(255,255,255,0.028);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  transition: transform 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.app-sidebar .page-nav-btn:hover { transform: translateY(-2px); background: rgba(255,255,255,0.055); }
+/* drop the old left accent bar in box mode */
+.app-sidebar .page-nav-btn.page-nav-active::before { content: none; }
+
+.nav-tab-ico {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  transition: transform 0.16s, background 0.16s, box-shadow 0.16s, border-color 0.16s;
+}
+.nav-tab-ico svg { width: 21px; height: 21px; opacity: 1; }
+.nav-tab-label { font-size: 12px; font-weight: 700; letter-spacing: 0.1px; line-height: 1; color: var(--muted); }
+.app-sidebar .page-nav-btn:hover .nav-tab-ico { transform: scale(1.07); }
+.app-sidebar .page-nav-btn.page-nav-active .nav-tab-label { color: #fff; }
+
+/* FREE badge → small corner chip */
+.app-sidebar .page-nav-btn .nav-free-tag {
+  position: absolute; top: 7px; right: 7px; margin: 0;
+  padding: 2px 6px; font-size: 8px; letter-spacing: 0.4px; border-radius: 999px;
+}
+
+/* Dedicated logo colours per tab */
+#navLogger .nav-tab-ico {
+  color: var(--accent);
+  background: rgba(157,107,255,0.12);
+  border-color: rgba(157,107,255,0.30);
+}
+#navOgSniper .nav-tab-ico {
+  color: var(--og);
+  background: rgba(255,170,60,0.12);
+  border-color: rgba(255,170,60,0.30);
+}
+
+/* Active tile picks up its own dedicated colour */
+#navLogger.page-nav-active {
+  background: linear-gradient(180deg, rgba(157,107,255,0.17), rgba(157,107,255,0.045));
+  border-color: rgba(157,107,255,0.5);
+  box-shadow: 0 10px 26px rgba(157,107,255,0.20), inset 0 0 0 1px rgba(157,107,255,0.14);
+}
+#navLogger.page-nav-active .nav-tab-ico {
+  background: rgba(157,107,255,0.24);
+  border-color: rgba(157,107,255,0.55);
+  box-shadow: 0 0 18px rgba(157,107,255,0.45);
+}
+#navOgSniper.page-nav-active {
+  background: linear-gradient(180deg, rgba(255,170,60,0.17), rgba(255,170,60,0.045));
+  border-color: rgba(255,170,60,0.5);
+  box-shadow: 0 10px 26px rgba(255,170,60,0.20), inset 0 0 0 1px rgba(255,170,60,0.14);
+}
+#navOgSniper.page-nav-active .nav-tab-ico {
+  background: rgba(255,170,60,0.24);
+  border-color: rgba(255,170,60,0.55);
+  box-shadow: 0 0 18px rgba(255,170,60,0.45);
+}
+
+/* "Menu" label spans the full tab row on desktop */
+@media (min-width: 901px) {
+  .app-sidebar .page-nav::before { grid-column: 1 / -1; }
+}
+
+/* Mobile: slightly shorter tiles */
+@media (max-width: 640px) {
+  .app-sidebar .page-nav-btn { min-height: 72px; padding: 11px 6px; }
+  .nav-tab-ico { width: 36px; height: 36px; }
+  .nav-tab-ico svg { width: 19px; height: 19px; }
+}
