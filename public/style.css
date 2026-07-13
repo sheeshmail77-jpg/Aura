@@ -2073,3 +2073,42 @@ body::before {
   .app-sidebar .page-nav-btn:hover, .app-sidebar .topbar-right button:hover,
   .stat-card:hover .stat-icon, .card:hover { transform: none !important; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   APP SHELL POLISH (v6) — entrance reveal + account row + breathing room
+════════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 901px) {
+  /* Entrance reveal (plays when the app unlocks after login) */
+  .app-shell .app-sidebar { animation: sidebarIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .app-shell .app-main    { animation: mainFadeIn 0.6s ease both; }
+
+  /* Account cluster reads like a proper profile row */
+  .app-sidebar .user-badge {
+    padding: 8px 12px; gap: 10px;
+    background: rgba(255,255,255,0.045);
+  }
+  .app-sidebar .user-avatar { width: 30px; height: 30px; font-size: 12px; }
+  .app-sidebar .conn { padding: 8px 12px; font-size: 11.5px; }
+
+  /* Subtle inset ring on the active tab */
+  .app-sidebar .page-nav-btn.page-nav-active {
+    box-shadow: inset 0 0 0 1px rgba(110,108,255,0.16);
+  }
+
+  /* A touch more breathing room at the top of the dashboard */
+  .app-main > #viewLogger,
+  .app-main > #viewOgSniper { padding-top: 12px; }
+}
+
+@keyframes sidebarIn {
+  from { opacity: 0; transform: translateX(-14px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes mainFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .app-sidebar, .app-shell .app-main { animation: none !important; }
+}
