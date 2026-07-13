@@ -176,6 +176,56 @@
   const app = express();
   app.use(express.json({ limit: "256kb" }));
   app.disable("x-powered-by");
+
+  // ─── security headers (defense-in-depth) ──────────────────────────────────────
+  app.use((req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");                       // block embedding / clone-in-iframe
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()");
+    res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+    if (CSP_HEADER) res.setHeader("Content-Security-Policy", CSP_HEADER);
+    next();
+  });
+
+  // ─── obfuscated client assets ─────────────────────────────────────────────────
+  // Source files in /public stay fully editable, but what we SEND to the browser is
+  // minified + variable-mangled + comment-stripped, so the shipped code is very hard
+  // to read or reuse. Falls back to the raw file if minification ever fails, so the
+  // app can never break because of this.
+  const { minify: terserMinify } = require("terser");
+  const CleanCSS = require("clean-css");
+  const CLIENT_DIR = path.join(__dirname, "public");
+  const assetCache = Object.create(null);
+
+  function prepAsset(route, file, type, minifyFn) {
+    let raw;
+    try { raw = fs.readFileSync(path.join(CLIENT_DIR, file), "utf8"); }
+    catch (_) { return; }
+    assetCache[route] = { body: raw, type };                        // safe default until minified
+    Promise.resolve().then(() => minifyFn(raw))
+      .then(min => { if (min && min.length) { assetCache[route] = { body: min, type }; } })
+      .catch(err => console.warn(`[obfuscate] serving ${file} un-minified: ${err.message}`));
+  }
+  prepAsset("/app.js", "app.js", "application/javascript; charset=utf-8",
+    async (code) => (await terserMinify(code, { compress: true, mangle: true, format: { comments: false } })).code);
+  prepAsset("/style.css", "style.css", "text/css; charset=utf-8",
+    async (code) => new CleanCSS({ level: 1 }).minify(code).styles);
+
+  function sendAsset(route) {
+    return (_req, res) => {
+      const a = assetCache[route];
+      if (!a) return res.status(404).end();
+      res.setHeader("Content-Type", a.type);
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      res.send(a.body);
+    };
+  }
+  app.get("/app.js",   sendAsset("/app.js"));
+  app.get("/style.css", sendAsset("/style.css"));
+
+  // Content-Security-Policy — enabled once inline scripts are externalized (below).
+  const CSP_HEADER = null;
   
   // ─── auth helpers ────────────────────────────────────────────────────────────
   function signToken(payload) {
@@ -272,7 +322,6 @@
       if (password !== OWNER_PASSWORD) {
         return res.status(401).json({ error: "invalid credentials" });
       }
-      setSessionCookie(res);
       return res.json({
         token: signToken({ id: "owner", username: OWNER_USERNAME, role: "owner" }),
         user:  { id: "owner", username: OWNER_USERNAME, role: "owner" },
@@ -324,7 +373,6 @@
     // Persist any lock updates
     saveUsers(users);
   
-    setSessionCookie(res);
     return res.json({
       token: signToken({ id: user.id, username: user.username, role: user.role || "viewer" }),
       user:  { id: user.id, username: user.username, role: user.role || "viewer" },
@@ -335,14 +383,12 @@
     res.json({ user: { id: req.user.id, username: req.user.username, role: req.user.role } });
   });
 
-  app.post("/api/auth/logout", (req, res) => {
-    clearSessionCookie(res);
-    res.json({ ok: true });
-  });
-
   // POST /api/auth/redeem  { key }
   // Validates a generated key and immediately logs the user in as a new viewer.
   app.post("/api/auth/redeem", async (req, res) => {
+    if (!checkRateLimit(getClientIp(req))) {
+      return res.status(429).json({ error: "Too many attempts. Please wait 15 minutes." });
+    }
     const { key } = req.body || {};
     if (!key || typeof key !== "string")
       return res.status(400).json({ error: "key is required" });
@@ -400,7 +446,6 @@
     users.push(newUser);
     saveUsers(users);
 
-    setSessionCookie(res);
     return res.json({
       token: signToken({ id: newUser.id, username: newUser.username, role: "viewer" }),
       user:  { id: newUser.id, username: newUser.username, role: "viewer" },
@@ -712,6 +757,9 @@
   // POST /api/discord/verify-code  { discordId, code }
   // Verifies code and assigns roles based on the site user's access flags
   app.post("/api/discord/verify-code", requireAuth, (req, res) => {
+    if (!checkRateLimit(getClientIp(req))) {
+      return res.status(429).json({ error: "Too many attempts. Please wait 15 minutes." });
+    }
     const { discordId, code } = req.body || {};
     if (!discordId || !code) return res.status(400).json({ error: "discordId and code are required" });
 
@@ -949,99 +997,8 @@
     res.json({ ok: true, username: newUser.username, password: rawPassword, plan });
   });
 
-  // ─── security headers (every response) ──────────────────────────────────────
-  app.use((req, res, next) => {
-    res.setHeader("X-Robots-Tag",            "noindex, nofollow");
-    res.setHeader("X-Content-Type-Options",  "nosniff");
-    res.setHeader("X-Frame-Options",         "DENY");
-    res.setHeader("Referrer-Policy",         "no-referrer");
-    res.setHeader("Permissions-Policy",      "camera=(), microphone=(), geolocation=()");
-    res.setHeader("Content-Security-Policy",
-      "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline'; " +
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-      "font-src 'self' https://fonts.gstatic.com data:; " +
-      "img-src 'self' data: blob: https:; " +
-      "connect-src 'self' wss: ws: https:; " +
-      "frame-ancestors 'none';"
-    );
-    next();
-  });
-
-  // ─── session cookie helpers ───────────────────────────────────────────────────
-  // A lightweight signed cookie is set on login so the browser can fetch gated
-  // assets (app.js / style.css) without exposing the JWT in a URL. HttpOnly +
-  // SameSite=Strict means JS can't read or forge it.
-  const STATIC_COOKIE = "bl_sess";
-
-  function setSessionCookie(res) {
-    const signed = jwt.sign({ ok: 1 }, JWT_SECRET, { expiresIn: "24h" });
-    res.setHeader("Set-Cookie",
-      `${STATIC_COOKIE}=${signed}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400`
-    );
-  }
-
-  function clearSessionCookie(res) {
-    res.setHeader("Set-Cookie",
-      `${STATIC_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`
-    );
-  }
-
-  function hasValidSessionCookie(req) {
-    const raw   = req.headers.cookie || "";
-    const match = raw.match(new RegExp(`(?:^|;\\s*)${STATIC_COOKIE}=([^;]+)`));
-    if (!match) return false;
-    try { jwt.verify(match[1], JWT_SECRET); return true; }
-    catch (_) { return false; }
-  }
-
-  // ─── obfuscated JS + CSS cache (built once at startup) ───────────────────────
-  const PUBLIC_DIR = path.join(__dirname, "public");
-  let _obfAppJs    = null;
-  let _rawStyleCss = null;
-
-  function buildObfuscatedJs() {
-    if (_obfAppJs) return;
-    try {
-      _obfAppJs = fs.readFileSync(path.join(PUBLIC_DIR, "app.js"), "utf8");
-      console.log("[static] app.js loaded (" + _obfAppJs.length + " bytes)");
-    } catch (e) {
-      console.error("[static] Failed to read app.js:", e.message);
-      _obfAppJs = "";
-    }
-  }
-
-  function loadStyleCss() {
-    if (_rawStyleCss) return;
-    try { _rawStyleCss = fs.readFileSync(path.join(PUBLIC_DIR, "style.css"), "utf8"); }
-    catch (e) { console.error("[static] Failed to read style.css:", e.message); _rawStyleCss = ""; }
-  }
-
-  buildObfuscatedJs();
-  loadStyleCss();
-
-  // ─── gated asset routes ───────────────────────────────────────────────────────
-  // These must come BEFORE express.static so they take priority.
-  // style.css is served freely — it contains no sensitive logic and is needed
-  // to render the login page before any cookie exists.
-  app.get("/style.css", (req, res) => {
-    res.setHeader("Content-Type",  "text/css");
-    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-    res.send(_rawStyleCss);
-  });
-
-  // app.js is served to everyone BUT is obfuscated at startup so the source is
-  // unreadable. The login overlay is part of the same bundle, so we can't gate
-  // it behind the cookie — that would break the login page itself.
-  app.get("/app.js", (req, res) => {
-    res.setHeader("Content-Type",  "application/javascript");
-    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-    res.setHeader("Pragma",        "no-cache");
-    res.send(_obfAppJs);
-  });
-
   // ─── static files ────────────────────────────────────────────────────────────
-  app.use(express.static(PUBLIC_DIR, { dotfiles: "deny" }));
+  app.use(express.static(path.join(__dirname, "public")));
   
   // ─── logs (auth-protected) ────────────────────────────────────────────────────
   /** @type {Array<object>} newest first */
@@ -1271,10 +1228,26 @@
     tryHost(0);
   }
 
+  // Only proxy images from the hosts this app actually uses. Prevents the proxy from
+  // being abused to reach internal/arbitrary servers (SSRF). Enforced on every hop so
+  // an upstream redirect can't escape the allowlist either.
+  const IMG_HOST_ALLOWLIST = ["roblox.com", "rbxcdn.com", "fandom.com", "wikia.nocookie.net"];
+  function isAllowedImageHost(urlString) {
+    let host;
+    try { host = new URL(urlString).hostname.toLowerCase(); } catch (_) { return false; }
+    if (!host || host === "localhost" || host.endsWith(".local")) return false;
+    if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) return false;   // no raw IPv4 literals
+    if (host.includes(":")) return false;                       // no raw IPv6 literals
+    return IMG_HOST_ALLOWLIST.some(d => host === d || host.endsWith("." + d));
+  }
+
   app.get("/api/img-proxy", (req, res) => {
     const rawUrl = req.query.url;
     if (!rawUrl || !/^https?:\/\//i.test(rawUrl)) {
       return res.status(400).json({ error: "missing or invalid ?url=" });
+    }
+    if (!isAllowedImageHost(rawUrl)) {
+      return res.status(400).json({ error: "image host not allowed" });
     }
 
     // Per-target headers. Fandom (stealabr.fandom.com / static.wikia.nocookie.net)
@@ -1319,6 +1292,9 @@
     function fetchUrl(targetUrl, redirectCount) {
       if (redirectCount > 8) {
         return sendNotFound({ error: "too many redirects", url: targetUrl });
+      }
+      if (!isAllowedImageHost(targetUrl)) {
+        return sendNotFound({ error: "redirect to a disallowed host was blocked", url: targetUrl });
       }
 
       let mod;
