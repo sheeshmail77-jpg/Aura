@@ -1843,3 +1843,156 @@ body::before {
   font-feature-settings: "tnum" 1;
 }
 .modal-card { border-radius: 18px; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   APP SHELL — SIDEBAR LAYOUT (Product theme)
+   Desktop: fixed left sidebar (brand + vertical nav + controls) beside a
+   scrolling main dashboard. ≤900px: sidebar collapses to a sticky top header
+   and the whole page scrolls as one.
+════════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 901px) {
+  .page.app-shell {
+    flex-direction: row;
+    gap: 0;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ──────────────────────────────────────────────────────── */
+  .app-sidebar {
+    flex-shrink: 0;
+    width: 264px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 22px 16px 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.008));
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    z-index: 3;
+    backdrop-filter: var(--glass-sm);
+  }
+  .app-sidebar::after {
+    content: ""; position: absolute; top: 0; right: -1px; bottom: 0; width: 1px;
+    background: linear-gradient(180deg, transparent, rgba(110,108,255,0.30), transparent);
+    pointer-events: none;
+  }
+
+  /* Brand */
+  .app-sidebar .brand {
+    order: 1;
+    gap: 11px;
+    padding: 2px 6px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .app-sidebar .brand-logo,
+  .app-sidebar .brand-mark { width: 40px; height: 40px; border-radius: 12px; }
+  .app-sidebar .brand-text h1 { font-size: 16px; }
+  .app-sidebar .brand-text p  { font-size: 10.5px; }
+
+  /* Nav — vertical tabs */
+  .app-sidebar .page-nav {
+    order: 2;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding: 2px 0;
+    margin: 0;
+    max-width: none;
+    width: 100%;
+  }
+  .app-sidebar .page-nav-btn {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 11px 14px;
+    border-radius: 10px;
+    font-size: 13.5px;
+  }
+  .app-sidebar .page-nav-btn .nav-free-tag { margin-left: auto; }
+
+  /* Controls — fill remaining height; account cluster pinned to bottom */
+  .app-sidebar .topbar-right {
+    order: 3;
+    flex: 1;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    gap: 8px;
+    min-height: 0;
+    padding-top: 6px;
+  }
+  .app-sidebar .topbar-right button {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+  }
+  .app-sidebar .conn,
+  .app-sidebar .user-badge {
+    width: 100%;
+    justify-content: flex-start;
+    border-radius: 10px;
+  }
+
+  /* control ordering: actions up top, account cluster at the very bottom */
+  .app-sidebar .btn-purchase   { order: 1; }
+  .app-sidebar .btn-get-role   { order: 2; }
+  .app-sidebar .btn-admin      { order: 3; }
+  .app-sidebar #soundToggleBtn { order: 4; }
+  .app-sidebar .conn           { order: 5; margin-top: auto; }
+  .app-sidebar .user-badge     { order: 6; }
+  .app-sidebar .btn-logout     { order: 7; }
+
+  /* ── Main content — the scrolling dashboard ───────────────────────── */
+  .app-main {
+    flex: 1;
+    min-width: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+  }
+  .app-main > #viewLogger,
+  .app-main > #viewOgSniper { padding-top: 6px; }
+}
+
+/* ── Sidebar collapses to a sticky top header on tablet/phone ─────────── */
+@media (max-width: 900px) {
+  .page.app-shell {
+    flex-direction: column;
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .app-sidebar {
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 12px clamp(14px, 4vw, 32px);
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,10,16,0.72);
+    backdrop-filter: blur(16px);
+    position: sticky; top: 0; z-index: 30;
+  }
+  .app-sidebar .brand { justify-content: flex-start; }
+  .app-sidebar .topbar-right { justify-content: flex-start; flex-wrap: wrap; }
+  .app-sidebar .page-nav { padding: 0; margin: 0; max-width: none; width: 100%; }
+
+  .app-main { height: auto; min-height: 0; overflow: visible; }
+  #viewLogger   { flex: none; overflow: visible; }
+  #viewOgSniper { flex: none; overflow: visible; }
+  .feeds { overflow: visible; }
+  .feed-list { max-height: none; overflow: visible; }
+
+  /* OG Sniper view flows with the page on smaller screens */
+  .og-dash { flex-direction: column; height: auto; min-height: 0; }
+  .og-sidebar { width: 100%; max-height: none; }
+  .og-feeds { overflow: visible; }
+}
