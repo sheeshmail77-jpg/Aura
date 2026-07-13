@@ -2112,3 +2112,183 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   .app-shell .app-sidebar, .app-shell .app-main { animation: none !important; }
 }
+
+/* ████████████████████████████████████████████████████████████████████████████
+   AURA — REDESIGN v2  (new identity, typography, surfaces & components)
+   Token-driven: redefining the system re-skins the entire app cohesively.
+████████████████████████████████████████████████████████████████████████████ */
+:root {
+  --bg:      #07070c;
+  --bg-2:    #0c0c14;
+  --panel:   rgba(255,255,255,0.028);
+  --panel-solid: #111119;
+  --panel-2: rgba(255,255,255,0.05);
+  --border:        rgba(255,255,255,0.075);
+  --border-strong: rgba(255,255,255,0.13);
+  --border-bright: rgba(255,255,255,0.22);
+  --text:  #f3f3f8;
+  --muted: #9ea0b3;
+  --faint: #585a6b;
+
+  /* signature aura: violet → cyan */
+  --accent:      #9d6bff;
+  --accent-2:    #57e0ff;
+  --accent-glow: rgba(157,107,255,0.40);
+
+  --og:     #ffb454; --og-2:     #ff8a1f; --og-glow:     rgba(255,170,60,0.28);
+  --dragon: #ff5f93; --dragon-2: #ff2f74; --dragon-glow: rgba(255,80,130,0.28);
+  --small:  #4fd8ff; --small-2:  #16b8e8; --small-glow:  rgba(60,205,255,0.24);
+
+  --green:  #2fe3a0; --purple: #b98cff;
+
+  --radius:    20px;
+  --radius-sm: 13px;
+  --shadow:    0 24px 70px rgba(0,0,0,0.62);
+  --glass:     blur(18px) saturate(1.25);
+  --glass-sm:  blur(12px) saturate(1.12);
+}
+
+/* ── Canvas: layered aura gradient + fine grid ─────────────────────────── */
+body {
+  font-family: "Inter Tight", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(1200px 720px at 80% -10%, rgba(157,107,255,0.14), transparent 60%),
+    radial-gradient(1000px 640px at 8% 112%,  rgba(87,224,255,0.10), transparent 60%),
+    linear-gradient(180deg, #08080f 0%, #06060b 100%);
+}
+.bg-orbs::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(ellipse 90% 68% at 50% 38%, #000 42%, transparent 100%);
+          mask-image: radial-gradient(ellipse 90% 68% at 50% 38%, #000 42%, transparent 100%);
+  opacity: 0.55;
+}
+.orb-1 { background: radial-gradient(circle, #9d6bff 0%, #2a1a66 65%); opacity: 0.14; }
+.orb-2 { background: radial-gradient(circle, #57e0ff 0%, #0a3a55 65%); opacity: 0.10; }
+.orb-3 { background: radial-gradient(circle, #7c5cff 0%, #16114d 65%); opacity: 0.10; }
+.orb-4 { background: radial-gradient(circle, #57e0ff 0%, #0a2a45 60%); opacity: 0.07; }
+
+/* ── Display typography ────────────────────────────────────────────────── */
+.brand-text h1, .dash-title, .feed-title, .modal-header h2,
+.og-sidebar-title, .stat-label {
+  font-family: "Space Grotesk", "Inter Tight", sans-serif;
+}
+.brand-text h1 { font-weight: 700; letter-spacing: -0.4px; }
+
+/* ── Dashboard header band (new) ───────────────────────────────────────── */
+.dash-head {
+  flex-shrink: 0;
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+  padding: 20px clamp(16px, 4vw, 48px) 8px;
+  max-width: 1600px; width: 100%; margin: 0 auto;
+}
+.dash-eyebrow {
+  font-size: 11px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase;
+  color: var(--accent-2);
+}
+.dash-title {
+  margin: 6px 0 0; font-size: clamp(24px, 3.4vw, 34px); font-weight: 700; line-height: 1.04;
+  background: linear-gradient(115deg, #ffffff 18%, var(--accent) 62%, var(--accent-2) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.dash-sub { margin: 7px 0 0; font-size: 13px; color: var(--muted); font-weight: 500; }
+.dash-live {
+  display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0;
+  padding: 8px 15px; border-radius: 999px;
+  background: rgba(47,227,160,0.10); border: 1px solid rgba(47,227,160,0.32);
+  color: #7ef0c2; font-size: 12px; font-weight: 800; letter-spacing: 0.4px;
+}
+.dash-live-dot { width: 8px; height: 8px; border-radius: 50%; background: #2fe3a0; animation: auraLive 1.8s infinite; }
+@keyframes auraLive {
+  0%   { box-shadow: 0 0 0 0 rgba(47,227,160,0.55); }
+  70%  { box-shadow: 0 0 0 9px rgba(47,227,160,0); }
+  100% { box-shadow: 0 0 0 0 rgba(47,227,160,0); }
+}
+
+/* ── Sidebar surface + bold active nav chip ────────────────────────────── */
+@media (min-width: 901px) {
+  .app-sidebar {
+    background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.006)), var(--bg-2);
+  }
+  .app-sidebar .brand-logo, .app-sidebar .brand-mark {
+    box-shadow: 0 8px 24px rgba(157,107,255,0.32), 0 0 0 1px rgba(255,255,255,0.06);
+  }
+  .app-sidebar .page-nav-btn.page-nav-active {
+    background: linear-gradient(120deg, rgba(157,107,255,0.24), rgba(87,224,255,0.14));
+    border-color: rgba(157,107,255,0.5);
+    color: #fff;
+    box-shadow: 0 8px 22px rgba(157,107,255,0.22), inset 0 0 0 1px rgba(255,255,255,0.05);
+  }
+  .app-sidebar .page-nav-btn.page-nav-active::before {
+    background: linear-gradient(180deg, var(--accent-2), var(--accent));
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+  .app-sidebar .user-avatar {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    box-shadow: 0 4px 14px var(--accent-glow);
+  }
+}
+
+/* ── KPI stat cards ────────────────────────────────────────────────────── */
+.stat-card {
+  border-radius: 18px; padding: 15px 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.014));
+  border: 1px solid var(--border);
+}
+.stat-icon { width: 42px; height: 42px; border-radius: 13px; }
+.stat-label { font-size: 10.5px; letter-spacing: 1px; }
+.stat-val { font-size: 25px; }
+.stat-card::after { height: 3px; opacity: 0.95; }
+.stat-card:hover { box-shadow: 0 16px 44px rgba(0,0,0,0.42); }
+
+/* ── Feed columns + cards ──────────────────────────────────────────────── */
+.feed-col {
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.008));
+  border: 1px solid var(--border);
+}
+.feed-col::after { height: 3px; opacity: 1; }
+.feed-header { padding: 14px 16px 12px; }
+.feed-title { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; }
+.feed-count { border-radius: 999px; padding: 3px 11px; }
+
+.card {
+  border-radius: 15px; padding: 13px 14px;
+  background: rgba(255,255,255,0.032);
+  border: 1px solid var(--border);
+}
+.card::before { height: 3px; opacity: 1; }
+.card:hover { background: rgba(255,255,255,0.055); }
+
+/* ── Accent buttons (violet→cyan aura) ─────────────────────────────────── */
+.btn-primary, .plan-buy-btn, .login-submit {
+  background: linear-gradient(120deg, var(--accent), var(--accent-2)) !important;
+  color: #0b0b16 !important; border: none !important; font-weight: 800 !important;
+  box-shadow: 0 10px 26px var(--accent-glow) !important;
+}
+.btn-primary:hover, .plan-buy-btn:hover, .login-submit:hover:not(:disabled) {
+  filter: brightness(1.07) !important; transform: translateY(-1px) !important;
+}
+
+/* ── Login + modals: rounder, aura-lit ─────────────────────────────────── */
+.login-card {
+  border-radius: 24px; border: 1px solid var(--border-strong);
+  box-shadow: 0 44px 120px rgba(0,0,0,0.72), 0 0 90px rgba(157,107,255,0.12);
+}
+.modal-card { border-radius: 22px; border: 1px solid var(--border-strong); }
+.modal-card::before,
+.login-card::after { background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), transparent) !important; }
+
+/* ── Connection badge (live) picks up new green ────────────────────────── */
+.conn.live { color: #9df0cf; border-color: rgba(47,227,160,0.28); }
+
+/* ── Mobile: dashboard header stacks ───────────────────────────────────── */
+@media (max-width: 640px) {
+  .dash-head { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 14px 4px; }
+  .dash-title { font-size: 23px; }
+  .dash-sub { font-size: 12px; }
+}
