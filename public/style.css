@@ -1996,3 +1996,80 @@ body::before {
   .og-sidebar { width: 100%; max-height: none; }
   .og-feeds { overflow: visible; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SIDEBAR + DASHBOARD POLISH (v5)
+   Section labels, active-tab indicator, crisper cards, subtle motion.
+════════════════════════════════════════════════════════════════════════════ */
+
+/* section labels are a desktop-sidebar concept — hidden elsewhere */
+.sb-divider { display: none; }
+
+@media (min-width: 901px) {
+  /* "Menu" label above the nav */
+  .app-sidebar .page-nav::before {
+    content: "Menu";
+    order: -1;
+    padding: 2px 10px 4px;
+    font-size: 10px; font-weight: 800; letter-spacing: 1.4px;
+    text-transform: uppercase; color: var(--faint);
+  }
+  /* "Account" label — owns the flexible gap above the bottom cluster */
+  .app-sidebar .sb-divider {
+    display: block;
+    order: 5;
+    margin-top: auto;
+    padding: 14px 10px 6px;
+    border-top: 1px solid var(--border);
+    font-size: 10px; font-weight: 800; letter-spacing: 1.4px;
+    text-transform: uppercase; color: var(--faint);
+  }
+  /* re-number the account cluster now that the divider owns the top gap */
+  .app-sidebar .conn       { order: 6; margin-top: 0; }
+  .app-sidebar .user-badge { order: 7; }
+  .app-sidebar .btn-logout { order: 8; }
+
+  /* Nav interaction: slide on hover, accent bar + brighter label when active */
+  .app-sidebar .page-nav-btn {
+    position: relative;
+    transition: transform 0.14s, background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .app-sidebar .page-nav-btn svg { opacity: 0.85; transition: opacity 0.15s, color 0.15s; }
+  .app-sidebar .page-nav-btn:hover { transform: translateX(2px); }
+  .app-sidebar .page-nav-btn:hover svg { opacity: 1; }
+  .app-sidebar .page-nav-btn.page-nav-active::before {
+    content: ""; position: absolute; left: -1px; top: 50%; transform: translateY(-50%);
+    width: 3px; height: 20px; border-radius: 0 3px 3px 0;
+    background: linear-gradient(180deg, var(--accent-2), var(--accent));
+    box-shadow: 0 0 10px var(--accent-glow);
+  }
+  .app-sidebar .page-nav-btn.page-nav-active svg { color: var(--accent-2); opacity: 1; }
+
+  /* Account/action buttons: gentle slide on hover */
+  .app-sidebar .topbar-right button { transition: transform 0.14s, background 0.12s, color 0.12s, border-color 0.12s, box-shadow 0.12s, filter 0.12s; }
+  .app-sidebar .topbar-right button:hover { transform: translateX(2px); }
+}
+
+/* ── Dashboard: crisper stat cards ─────────────────────────────────── */
+.stat-card {
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.014));
+}
+.stat-icon { border-radius: 12px; transition: transform 0.18s; }
+.stat-card:hover .stat-icon { transform: scale(1.06); }
+
+/* ── Dashboard: feed columns + count pills ────────────────────────── */
+.feed-col { border-radius: 16px; }
+.feed-count { border-radius: 999px; padding: 3px 10px; }
+
+/* ── Log cards: smoother lift ─────────────────────────────────────── */
+.card { transition: border-color 0.18s, box-shadow 0.2s, transform 0.16s, background 0.18s; }
+.card:hover { transform: translateY(-2px); }
+
+/* ── Motion guard ─────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar .page-nav-btn, .app-sidebar .topbar-right button,
+  .stat-icon, .card { transition: none !important; }
+  .app-sidebar .page-nav-btn:hover, .app-sidebar .topbar-right button:hover,
+  .stat-card:hover .stat-icon, .card:hover { transform: none !important; }
+}
